@@ -1,0 +1,23 @@
+[alias]
+  ci = commit
+  st = status -s
+  
+  # show log in nice abbreviated format, with markers for location of HEAD etc
+  lol = log --pretty=oneline --abbrev-commit --graph --decorate --color
+  
+  # show only your own branches
+  lob = log --pretty=oneline --abbrev-commit --graph --decorate --color --branches
+  
+  # show all branches from everyone
+  loa = log --pretty=oneline --abbrev-commit --graph --decorate --color --all
+  unstage = reset HEAD
+  amend = commit --amend
+  ammend = commit --amend
+  wc = whatchanged
+  fr = !git fetch && git rebase origin/master
+[diff]
+  renamelimit=10000
+[color]
+  diff = auto
+  status = auto
+  branch = auto
