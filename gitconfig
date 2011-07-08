@@ -11,6 +11,7 @@
   # show all branches from everyone
   loa = log --pretty=oneline --abbrev-commit --graph --decorate --color --all
   unstage = reset HEAD
+  uncommit = reset --soft # include a hash at the end!
   amend = commit --amend
   ammend = commit --amend
   wc = whatchanged
