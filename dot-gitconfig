@@ -1,0 +1,54 @@
+[core]
+	excludesfile = ~/.gitignore
+	autocrlf = input
+	safecrlf = true
+	whitespace=fix,-indent-with-non-tab,trailing-space,cr-at-eol
+[color]
+	ui = true
+[color "diff"]
+	meta = yellow bold
+	frag = magenta bold
+	old = red bold
+	new = green bold
+	whitespace = red reverse
+[alias]
+	ai = add --interactive
+	br = branch
+	ci = commit
+	co = checkout
+	df = diff
+	lg = log -p
+	lob = log --pretty=oneline --abbrev-commit --graph --decorate --color --branches
+	lol = log --pretty=oneline --abbrev-commit --graph --decorate --color
+	st = status -s
+	loa = log --pretty=oneline --abbrev-commit --graph --decorate --color --all
+	ls = ls-files
+	unstage = reset HEAD
+	amend = commit --amend
+	ammend = commit --amend
+	wc = whatchanged
+	fr = !git fetch && git rebase origin/master
+	ls-ignored = ls-files --exclude-standard --ignored --others
+	# diff that highlights the changed lines, and ALSO changed words and chars
+	# git wds does the same for staged changes.
+	wd = diff --color-words
+	wds = diff --color-words --staged
+[diff]
+	renamelimit = 10000
+	renames = copies
+	mnemonicprefix = true
+[color]
+	diff = auto
+	status = auto
+	branch = auto
+	ui = auto
+[branch]
+	autosetupmerge = true
+[push]
+	default = tracking
+[rerere]
+	enabled = true
+[merge]
+	stat = true
+[pager]
+	color = true
