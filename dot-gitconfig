@@ -17,11 +17,11 @@
 	ci = commit
 	co = checkout
 	df = diff
-	lg = log -p
+	st = status -s
 	lob = log --pretty=oneline --abbrev-commit --graph --decorate --color --branches
 	lol = log --pretty=oneline --abbrev-commit --decorate --color
-	st = status -s
 	loa = log --pretty=oneline --abbrev-commit --graph --decorate --color --all
+	lop = log -p
 	ls = ls-files
 	unstage = reset HEAD
 	uncommit = reset --soft # include a hash at the end!
