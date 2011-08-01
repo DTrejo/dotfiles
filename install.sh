@@ -15,3 +15,6 @@ for x in $BASE/dot-* ; do
   ln -s $x $HOME/$realdot
 
 done
+
+echo Also Linking ~/bin to $BASE/bin
+ln -s $BASE/bin $HOME/bin

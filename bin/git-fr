@@ -1,0 +1,14 @@
+# inspired by `git reup`
+# http://nuclearsquid.com/writings/git-tricks-tips-workflows/
+if [[ `git stash` == 'No local changes to save' ]]; then
+  SHOULD_POP=true
+  git stash save
+else
+  SHOULD_POP=false
+fi
+
+git fetch && git rebase origin/master
+
+if [[ $SHOULD_POP ]]; then
+  git stash pop
+fi

@@ -85,3 +85,6 @@ export MAVEN_OPTS="-server -Xms256m -Xmx512m"
 # pull in private things or things only applicable to this machine
 #
 source ~/.private
+
+# add git extensions/scripts to path
+export PATH=$PATH:$HOME/bin
