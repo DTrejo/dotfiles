@@ -19,7 +19,7 @@
 	df = diff
 	lg = log -p
 	lob = log --pretty=oneline --abbrev-commit --graph --decorate --color --branches
-	lol = log --pretty=oneline --abbrev-commit --graph --decorate --color
+	lol = log --pretty=oneline --abbrev-commit --decorate --color
 	st = status -s
 	loa = log --pretty=oneline --abbrev-commit --graph --decorate --color --all
 	ls = ls-files
@@ -28,7 +28,6 @@
 	amend = commit --amend
 	ammend = commit --amend
 	wc = whatchanged
-	fr = !git fetch && git rebase origin/master
 	ls-ignored = ls-files --exclude-standard --ignored --others
 	# diff that highlights the changed lines, and ALSO changed words and chars
 	# git wds does the same for staged changes.
@@ -53,3 +52,5 @@
 	stat = true
 [pager]
 	color = true
+[github]
+	user = DTrejo
