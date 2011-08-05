@@ -4,7 +4,10 @@
 	safecrlf = true
 	whitespace=fix,-indent-with-non-tab,trailing-space,cr-at-eol
 [color]
-	ui = true
+	diff = auto
+	status = auto
+	branch = auto
+	ui = auto
 [color "diff"]
 	meta = yellow bold
 	frag = magenta bold
@@ -18,8 +21,8 @@
 	co = checkout
 	df = diff
 	st = status -s
-	lob = log --pretty=oneline --abbrev-commit --graph --decorate --color --branches
 	lol = log --pretty=oneline --abbrev-commit --decorate --color
+	lob = log --pretty=oneline --abbrev-commit --graph --decorate --color --branches
 	loa = log --pretty=oneline --abbrev-commit --graph --decorate --color --all
 	lop = log -p
 	ls = ls-files
@@ -37,11 +40,6 @@
 	renamelimit = 10000
 	renames = copies
 	mnemonicprefix = true
-[color]
-	diff = auto
-	status = auto
-	branch = auto
-	ui = auto
 [branch]
 	autosetupmerge = true
 [push]
