@@ -1,6 +1,11 @@
 # inspired by `git reup`
 # http://nuclearsquid.com/writings/git-tricks-tips-workflows/
-if [[ `git stash save` == 'No local changes to save' ]]; then
+
+trim() { echo $1; }
+
+OLD_HEAD=$(trim `git rev-parse head`)
+
+if [[ `git stash save "Auto-stash '$0'"` == 'No local changes to save' ]]; then
   SHOULD_POP=false
 else
   SHOULD_POP=true
@@ -9,5 +14,17 @@ fi
 git fetch && git rebase origin/master
 
 if [[ $SHOULD_POP == true ]]; then
-  git stash pop
+  git stash pop --quiet
+fi
+
+#
+# show information on any updated, if applicable
+#
+NEW_HEAD="$(trim `git rev-parse head`)"
+if [[ $OLD_HEAD != $NEW_HEAD ]]; then
+  echo "Diffstat:"
+  git --no-pager diff --color --stat $OLD_HEAD.. | sed 's/^/  /'
+
+  echo "Log:"
+  git log --color --pretty=oneline --abbrev-commit $OLD_HEAD.. | sed 's/^/  /'
 fi
