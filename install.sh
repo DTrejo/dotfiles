@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BASE=$(readlink -f $(pwd))
+BASE=${PWD}
 
 for x in $BASE/dot-* ; do
   fname=$(basename $x)
