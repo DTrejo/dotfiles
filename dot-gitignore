@@ -40,7 +40,6 @@ Icon?
 *.bzip
 
 # Logs and databases #
-*.log
 *.sql
 *.sqlite
 
@@ -124,7 +123,6 @@ install_manifest.txt
 *.ilg
 *.ind
 *.ist
-*.log
 *.out
 *.toc
 *.fdb_latexmk
@@ -137,7 +135,6 @@ install_manifest.txt
 # Node #
 lib-cov
 *.seed
-*.log
 *.csv
 *.dat
 *.out
@@ -145,7 +142,6 @@ lib-cov
 *.gz
 
 pids
-logs
 results
 
 # Xcode/Objective-C #
@@ -163,57 +159,6 @@ build/*
 xcuserdata
 profile
 *.moved-aside
-
-# Scala #
-*.class
-*.log
-
-# sbt specific
-dist/*
-target/
-lib_managed/
-src_managed/
-project/boot/
-project/plugins/project/
-
-# Ruby #
-coverage
-rdoc
-pkg
-test/tmp
-test/version_tmp
-tmp
-pkg
-*.gem
-*.rbc
-lib/bundler/man
-spec/reports
-.config
-InstalledFiles
-.bundle
-
-# YARD artifacts
-.yardoc
-_yardoc
-doc/
-
-# Rails #
-*.rbc
-*.sassc
-.sass-cache
-capybara-*.html
-.rspec
-/.bundle
-/vendor/bundle
-/log/*
-/tmp/*
-/db/*.sqlite3
-/public/system/*
-/coverage/
-/spec/tmp/*
-**.orig
-config/*.yml
-rerun.txt
 
 # Java #
 *.class
