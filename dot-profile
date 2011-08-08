@@ -31,7 +31,7 @@ parse_git_branch() {
   git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
 }
 # ~/dev/dotfiles(my-branch-name)§
-export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]§ "
+export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]\e[0;32m§\e[0m "
 shopt -s checkwinsize # keep things from overwriting wierdly
 
 # rm does move to trash
