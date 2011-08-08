@@ -32,6 +32,7 @@ parse_git_branch() {
 }
 # ~/dev/dotfiles(my-branch-name)§
 export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]§ "
+shopt -s checkwinsize # keep things from overwriting wierdly
 
 # rm does move to trash
 # via http://blog.vicshih.com/2008/04/move-to-trash-from-mac-command-line.html
