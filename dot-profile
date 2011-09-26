@@ -5,6 +5,7 @@ alias editprofile='mate_wait ~/.profile; . ~/.profile'
 alias o='open .'
 alias m='mate .'
 alias difflast='git diff HEAD^ HEAD > ~/Desktop/diff.diff'
+alias gdiff='git diff --no-index --color'
 alias g='git'
 # Autocomplete for 'g' alias as well
 # complete -o default -o nospace -F git g
