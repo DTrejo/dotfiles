@@ -36,6 +36,7 @@
 	# git wds does the same for staged changes.
 	wd = diff --color-words
 	wds = diff --color-words --staged
+	prp = !git pr && git push
 [diff]
 	renamelimit = 10000
 	renames = copies
