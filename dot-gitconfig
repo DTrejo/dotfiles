@@ -19,7 +19,9 @@
 	br = branch
 	ci = commit
 	co = checkout
-	df = diff
+	d = diff
+	ds = diff --staged
+	dh = diff --staged # stands for diff head & that is not same, but o well
 	st = status -s
 	lol = log --pretty=oneline --abbrev-commit --decorate --color
 	lob = log --pretty=oneline --abbrev-commit --graph --decorate --color --branches
@@ -58,3 +60,5 @@
 	color = true
 [github]
 	user = DTrejo
+[user]
+	name = DTrejo
