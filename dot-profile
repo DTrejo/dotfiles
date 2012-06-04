@@ -1,9 +1,10 @@
 #
 # aliases
 #
-alias editprofile='mate_wait ~/.profile; . ~/.profile'
+alias editprofile='subl_wait ~/.profile; . ~/.profile'
 alias o='open .'
-alias m='mate .'
+alias m='subl .'
+alias s='subl .'
 alias difflast='git diff HEAD^ HEAD > ~/Desktop/diff.diff'
 alias gdiff='git diff --no-index --color'
 alias g='git'
@@ -20,8 +21,8 @@ export JOBS=4 # for faster node building
 export HISTCONTROL=ignoredups
 export HISTSIZE=10000000
 export HISTFILESIZE=10000000
-export EDITOR="mate_wait"
-export VISUAL="mate_wait"
+export EDITOR="subl_wait"
+export VISUAL="subl_wait"
 export PAGER="less"
 export CLICOLOR="yes"
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
