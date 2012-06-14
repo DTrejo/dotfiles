@@ -84,6 +84,9 @@ alias pr='post-review'
 alias pgstart='/opt/local/lib/postgresql84/bin/pg_ctl -D /opt/local/var/db/postgresql84/defaultdb -l logfile start'
 export MAVEN_OPTS="-server -Xms256m -Xmx512m"
 alias zk='/Users/david/zookeeper-3.4.3/bin/zkServer.sh'
+alias dev='cd ~/Dropbox/dev'
+alias ..='cd ..'
+alias ...='.. ; ..'
 
 #
 # pull in private things or things only applicable to this machine

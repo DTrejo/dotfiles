@@ -3,6 +3,8 @@
 	autocrlf = input
 	safecrlf = true
 	whitespace=fix,-indent-with-non-tab,trailing-space,cr-at-eol
+[apply]
+	whitespace = fix
 [color]
 	diff = auto
 	status = auto
@@ -62,3 +64,4 @@
 	user = DTrejo
 [user]
 	name = DTrejo
+	email = david.trejo@voxer.com
