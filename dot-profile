@@ -36,6 +36,11 @@ parse_git_branch() {
 export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]\e[0;32m§\e[0m "
 shopt -s checkwinsize # keep things from overwriting wierdly
 
+# for convenience of not typing branch names 24/7
+gb() {
+  git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'
+}
+
 # rm does move to trash
 # via http://blog.vicshih.com/2008/04/move-to-trash-from-mac-command-line.html
 function del() {
@@ -72,6 +77,10 @@ function del() {
 if [[ "$OSTYPE" == 'darwin10.0' ]]; then
   alias rm='del'
 fi
+# also lion
+if [[ "$OSTYPE" == 'darwin11' ]]; then
+  alias rm='del'
+fi
 
 # Random configuration stuff
 
@@ -95,3 +104,4 @@ source ~/.private
 
 # add git extensions/scripts to path
 export PATH=$PATH:$HOME/bin
+alias sl='ls'
