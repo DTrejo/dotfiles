@@ -1,0 +1,46 @@
+# inspired by `git reup`
+# http://nuclearsquid.com/writings/git-tricks-tips-workflows/
+
+# for convenience of not typing branch names 24/7
+git_branchname() {
+  git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'
+}
+trim() { echo $1; }
+
+if [[ $# != 1 ]]; then
+  echo "must supply exactly one branch to update. Saw $# args."
+  exit 1
+fi
+
+CUR_BRANCH=$(git_branchname)
+BRANCH_TO_UPDATE=$1
+
+if [[ $(git stash save "Auto-stash '$0'") == 'No local changes to save' ]]; then
+  SHOULD_POP=false
+else
+  SHOULD_POP=true
+fi
+
+#
+# the meat of it
+#
+git checkout $BRANCH_TO_UPDATE
+
+OLD_HEAD=$(trim $(git rev-parse head))
+git fetch && git rebase origin/$BRANCH_TO_UPDATE
+NEW_HEAD="$(trim $(git rev-parse head))"
+
+if [[ $OLD_HEAD != $NEW_HEAD ]]; then
+  echo "Diffstat:"
+  git --no-pager diff --color --stat $OLD_HEAD.. | sed 's/^/  /'
+
+  echo "Log:"
+  git log --color --pretty=oneline --abbrev-commit $OLD_HEAD.. | sed 's/^/  /'
+fi
+
+git checkout $CUR_BRANCH
+
+
+if [[ $SHOULD_POP == true ]]; then
+  git stash pop --quiet
+fi
