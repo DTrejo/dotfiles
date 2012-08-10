@@ -97,6 +97,9 @@ alias dev='cd ~/Dropbox/dev'
 alias ..='cd ..'
 alias ...='.. ; ..'
 
+# raise the number of files a process is allowed to have open.
+ulimit -S -n 5000
+
 #
 # pull in private things or things only applicable to this machine
 #
@@ -105,3 +108,21 @@ source ~/.private
 # add git extensions/scripts to path
 export PATH=$PATH:$HOME/bin
 alias sl='ls'
+
+# {{{
+# Node Completion - Auto-generated, do not touch.
+shopt -s progcomp
+for f in $(command ls ~/.node-completion); do
+  f="$HOME/.node-completion/$f"
+  test -f "$f" && . "$f"
+done
+# }}}
+
+##
+# Your previous /Users/david/.profile file was backed up as /Users/david/.profile.macports-saved_2012-08-09_at_12:28:22
+##
+
+# MacPorts Installer addition on 2012-08-09_at_12:28:22: adding an appropriate PATH variable for use with MacPorts.
+export PATH=/opt/local/bin:/opt/local/sbin:$PATH
+# Finished adapting your PATH environment variable for use with MacPorts.
+
