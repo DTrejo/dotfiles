@@ -33,8 +33,8 @@ parse_git_branch() {
   git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
 }
 # ~/dev/dotfiles(my-branch-name)§
-export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]\e[0;32m§\e[0m "
-shopt -s checkwinsize # keep things from overwriting wierdly
+export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]\[\e[0;32m\]§\[\e[0m\] "
+shopt -s checkwinsize cdspell extglob
 
 # for convenience of not typing branch names 24/7
 gb() {
@@ -107,7 +107,12 @@ source ~/.private
 
 # add git extensions/scripts to path
 export PATH=$PATH:$HOME/bin
-alias sl='ls'
+alias sl='ls -p'
+alias ls='ls -p'
+
+# fix problem with tmux
+export TERM=xterm-color
+
 
 # {{{
 # Node Completion - Auto-generated, do not touch.
