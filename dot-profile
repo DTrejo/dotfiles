@@ -34,7 +34,7 @@ parse_git_branch() {
 }
 # ~/dev/dotfiles(my-branch-name)§
 export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]\[\e[0;32m\]§\[\e[0m\] "
-shopt -s checkwinsize cdspell extglob
+shopt -s checkwinsize cdspell
 
 # for convenience of not typing branch names 24/7
 gb() {
