@@ -8,6 +8,8 @@ alias s='subl .'
 alias difflast='git diff HEAD^ HEAD > ~/Desktop/diff.diff'
 alias gdiff='git diff --no-index --color'
 alias g='git'
+alias copy='pbcopy'
+alias paste='pbpaste'
 # Autocomplete for 'g' alias as well
 # complete -o default -o nospace -F git g
 
@@ -81,6 +83,10 @@ fi
 if [[ "$OSTYPE" == 'darwin11' ]]; then
   alias rm='del'
 fi
+# also mountain lion
+if [[ "$OSTYPE" == 'darwin12' ]]; then
+  alias rm='del'
+fi
 
 # Random configuration stuff
 
@@ -94,8 +100,11 @@ alias pgstart='/opt/local/lib/postgresql84/bin/pg_ctl -D /opt/local/var/db/postg
 export MAVEN_OPTS="-server -Xms256m -Xmx512m"
 alias zk='/Users/david/zookeeper-3.4.3/bin/zkServer.sh'
 alias dev='cd ~/Dropbox/dev'
+alias class='cd ~/Dropbox/classes'
+alias pl='cd ~/Dropbox/classes/pl'
+alias net='cd ~/Dropbox/classes/networks'
 alias ..='cd ..'
-alias ...='.. ; ..'
+alias ...='cd ../../'
 
 # raise the number of files a process is allowed to have open.
 ulimit -S -n 5000
