@@ -3,8 +3,9 @@
 #
 alias editprofile='subl_wait ~/.profile; . ~/.profile'
 alias o='open .'
-alias m='subl .'
+alias n='npm'
 alias s='subl .'
+alias m='subl .'
 alias difflast='git diff HEAD^ HEAD > ~/Desktop/diff.diff'
 alias gdiff='git diff --no-index --color'
 alias g='git'
@@ -41,6 +42,11 @@ shopt -s checkwinsize cdspell
 # for convenience of not typing branch names 24/7
 gb() {
   git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'
+}
+
+# opens the github page for the current repo, written by @kurisuchan
+function gh() {
+  open `git remote -v | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//'`| head -n1
 }
 
 # rm does move to trash
@@ -91,9 +97,9 @@ fi
 # Random configuration stuff
 
 # add bash completion
-if [ -f /opt/local/etc/bash_completion ]; then
-  . /opt/local/etc/bash_completion
-fi
+# if [ -f /opt/local/etc/bash_completion ]; then
+#   . /opt/local/etc/bash_completion
+# fi
 
 alias pr='post-review'
 alias pgstart='/opt/local/lib/postgresql84/bin/pg_ctl -D /opt/local/var/db/postgresql84/defaultdb -l logfile start'
@@ -123,15 +129,6 @@ alias ls='ls -p'
 export TERM=xterm-color
 
 
-# {{{
-# Node Completion - Auto-generated, do not touch.
-shopt -s progcomp
-for f in $(command ls ~/.node-completion); do
-  f="$HOME/.node-completion/$f"
-  test -f "$f" && . "$f"
-done
-# }}}
-
 ##
 # Your previous /Users/david/.profile file was backed up as /Users/david/.profile.macports-saved_2012-08-09_at_12:28:22
 ##
@@ -140,3 +137,12 @@ done
 export PATH=/opt/local/bin:/opt/local/sbin:$PATH
 # Finished adapting your PATH environment variable for use with MacPorts.
 
+
+# {{{
+# Node Completion - Auto-generated, do not touch.
+shopt -s progcomp
+for f in $(command ls ~/.node-completion); do
+  f="$HOME/.node-completion/$f"
+  test -f "$f" && . "$f"
+done
+# }}}
