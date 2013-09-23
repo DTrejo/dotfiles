@@ -24,12 +24,16 @@
 	d = diff
 	ds = diff --staged
 	dh = diff --staged # stands for diff head & that is not same, but o well
-	st = status -s
+	s = status -s
 	lol = log --pretty=oneline --abbrev-commit --decorate --color
 	lob = log --pretty=oneline --abbrev-commit --graph --decorate --color --branches
 	loa = log --pretty=oneline --abbrev-commit --graph --decorate --color --all
 	lop = log -p
 	ls = ls-files
+	r = rebase
+	rc = rebase --continue
+	rs = rebase --skip
+	ra = rebase --abort
 	unstage = reset HEAD
 	uncommit = reset --soft # include a hash at the end!
 	amend = commit --amend
@@ -64,4 +68,4 @@
 	user = DTrejo
 [user]
 	name = DTrejo
-	email = david.trejo@voxer.com
+	email = david.trejo@dena.jp
