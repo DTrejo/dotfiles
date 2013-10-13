@@ -122,6 +122,8 @@ source ~/.private
 
 # add git extensions/scripts to path
 export PATH=$PATH:$HOME/bin
+# add mactex scripts
+export PATH=$PATH:/usr/texbin
 alias sl='ls -p'
 alias ls='ls -p'
 

@@ -21,6 +21,7 @@
 	br = branch
 	ci = commit
 	co = checkout
+	cp = cherry-pick
 	d = diff
 	ds = diff --staged
 	dh = diff --staged # stands for diff head & that is not same, but o well
@@ -44,7 +45,6 @@
 	# git wds does the same for staged changes.
 	wd = diff --color-words
 	wds = diff --color-words --staged
-	prp = !git pr && git push
 	# via http://pyrtsa.posterous.com/aligning-your-git-logs
 	l50 = "!git log --abbrev-commit --date=short --pretty=format:'%x00%h%x00%cd%x00%s%x00%an%x00%d' | gawk -F '\\0' '{ printf \"%s\\033[31m%s\\033[0m \\033[32m%s\\033[0m  %-50s \\033[30;1m%s\\033[0m\\033[33m%s\\n\", $1, $2, $3, gensub(/(.{49}).{2,}/, \"\\\\1…\",\"g\",$4), $5, $6 }' | less -R"
 	l80 = "!git log --abbrev-commit --date=short --pretty=format:'%x00%h%x00%cd%x00%s%x00%an%x00%d' | gawk -F '\\0' '{ printf \"%s\\033[31m%s\\033[0m \\033[32m%s\\033[0m  %-80s \\033[30;1m%s\\033[0m\\033[33m%s\\n\", $1, $2, $3, gensub(/(.{79}).{2,}/, \"\\\\1…\",\"g\",$4), $5, $6 }' | less -R"
@@ -68,4 +68,4 @@
 	user = DTrejo
 [user]
 	name = DTrejo
-	email = david.trejo@dena.jp
+	email = david.daniel.trejo@gmail.com
