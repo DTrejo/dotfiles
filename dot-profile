@@ -33,7 +33,7 @@ export PROMPT_COLOR='1;1;40m'
 # default prompt
 # export PS1="\h:\W \u\$ "
 parse_git_branch() {
-  git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
+  $(which git) branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
 }
 # ~/dev/dotfiles(my-branch-name)§
 export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]\[\e[0;32m\]§\[\e[0m\] "
@@ -105,7 +105,11 @@ alias pr='post-review'
 alias pgstart='/opt/local/lib/postgresql84/bin/pg_ctl -D /opt/local/var/db/postgresql84/defaultdb -l logfile start'
 export MAVEN_OPTS="-server -Xms256m -Xmx512m"
 alias zk='/Users/david/zookeeper-3.4.3/bin/zkServer.sh'
-alias dev='cd ~/Dropbox/dev'
+export DEV_DIR=$HOME/Dropbox/dev
+alias dev='cd $DEV_DIR'
+function d() {
+  cd $DEV_DIR/"$1"
+}
 alias class='cd ~/Dropbox/classes'
 alias pl='cd ~/Dropbox/classes/pl'
 alias net='cd ~/Dropbox/classes/networks'
@@ -119,6 +123,11 @@ ulimit -S -n 5000
 # pull in private things or things only applicable to this machine
 #
 source ~/.private
+
+#
+# if stuff snuck into ~/.bashrc, source it
+#
+# source ~/.bashrc
 
 # add git extensions/scripts to path
 export PATH=$PATH:$HOME/bin
