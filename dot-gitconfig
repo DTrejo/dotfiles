@@ -40,6 +40,7 @@
 	amend = commit --amend
 	ammend = commit --amend
 	wc = whatchanged
+	clonep = !git clone $(pbpaste)
 	ls-ignored = ls-files --exclude-standard --ignored --others
 	# diff that highlights the changed lines, and ALSO changed words and chars
 	# git wds does the same for staged changes.

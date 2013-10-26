@@ -157,3 +157,21 @@ for f in $(command ls ~/.node-completion); do
   test -f "$f" && . "$f"
 done
 # }}}
+
+
+#
+# amp aliases! YEEE
+#
+#
+# alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
+
+# give me variable saving!
+alias gs='amp -p "...(.*)$" git status -s'
+alias gbr='amp -p " ? (.*)$" git branch' # haha wow thats funny regex
+
+
+# give me variable expansion!
+alias subl='amp subl'
+alias ga='amp git add'
+alias gco='amp git checkout'
+alias gd='amp git diff'
