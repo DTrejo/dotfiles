@@ -173,6 +173,7 @@ alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
 # give me variable expansion!
 alias subl='amp subl'
 alias ga='amp git add'
+alias grm='amp git rm'
 alias gco='amp git checkout'
 alias gd='amp git diff'
 alias cat='amp cat'
