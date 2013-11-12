@@ -166,7 +166,7 @@ done
 
 # give me variable saving!
 alias gs='amp -p "...(.*)$" git status -s'
-alias gbr='amp -p " ? (.*)$" git branch' # haha wow thats funny regex
+alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch' # haha wow thats funny regex
 alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
 
 
@@ -176,5 +176,10 @@ alias ga='amp git add'
 alias grm='amp git rm'
 alias gco='amp git checkout'
 alias gd='amp git diff'
+alias gdh='amp git diff HEAD'
+alias gunstage='amp git unstage'
 alias cat='amp cat'
 alias less='amp less'
+
+alias gc='git commit'
+alias gp='git push'
