@@ -24,8 +24,8 @@ export JOBS=4 # for faster node building
 export HISTCONTROL=ignoredups
 export HISTSIZE=10000000
 export HISTFILESIZE=10000000
-export EDITOR="subl_wait"
-export VISUAL="subl_wait"
+export EDITOR='subl -w'
+export EDITOR='subl -w'
 export PAGER="less"
 export CLICOLOR="yes"
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
@@ -46,7 +46,7 @@ gb() {
 
 # opens the github page for the current repo, written by @kurisuchan
 function gh() {
-  open `git remote -v | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//'`| head -n1
+  open `git remote -v | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
 }
 
 # rm does move to trash
@@ -139,6 +139,7 @@ alias ls='ls -p'
 # fix problem with tmux
 export TERM=xterm-color
 
+alias air='cd /Users/dtrejo/Documents/airpair.com'
 
 ##
 # Your previous /Users/david/.profile file was backed up as /Users/david/.profile.macports-saved_2012-08-09_at_12:28:22
@@ -166,9 +167,11 @@ done
 
 # give me variable saving!
 alias gs='amp -p "...(.*)$" git status -s'
-alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch' # haha wow thats funny regex
-alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
+alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch' # supports -a, -r flags
 
+alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
+alias find='amp -p "(.*)" find'
+# TODO alias gdiffstat='amp -p "(.*) " git diff --stat'
 
 # give me variable expansion!
 alias subl='amp subl'
@@ -183,3 +186,7 @@ alias less='amp less'
 
 alias gc='git commit'
 alias gp='git push'
+alias mocha='amp mocha'
+
+# less typing
+alias gamend='git amend'
