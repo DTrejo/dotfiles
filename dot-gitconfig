@@ -32,9 +32,11 @@
 	lop = log -p
 	ls = ls-files
 	r = rebase
+	ri = rebase -i
 	rc = rebase --continue
 	rs = rebase --skip
 	ra = rebase --abort
+	riom = rebase -i origin/master
 	unstage = reset HEAD
 	uncommit = reset --soft # include a hash at the end!
 	amend = commit --amend
