@@ -2,6 +2,15 @@
 	"installed_packages":
 	[
 		"Better CoffeeScript",
-		"CoffeeCompile"
+		"CoffeeCompile",
+		"GitGutter",
+		"Handlebars",
+		"HTML Mustache",
+		"HTML-CSS-JS Prettify",
+		"HTML5",
+		"JsFormat",
+		"JSONLint",
+		"Markdown Preview",
+		"SideBarEnhancements"
 	]
 }
