@@ -67,9 +67,10 @@ tmtags
 # Redcar #
 .redcar
 
+# These mofos combined in a perfect storm and wasted hours of my time
 # etags/ctags #
-TAGS
-tags
+# TAGS
+# tags
 
 # SVN #
 /.svn/*
