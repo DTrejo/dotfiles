@@ -11,6 +11,8 @@ alias gdiff='git diff --no-index --color'
 alias g='git'
 alias copy='pbcopy'
 alias paste='pbpaste'
+alias todos='git grep -in todo'
+alias cpretty='paste | json | copy'
 # Autocomplete for 'g' alias as well
 # complete -o default -o nospace -F git g
 
@@ -105,14 +107,13 @@ alias pr='post-review'
 alias pgstart='/opt/local/lib/postgresql84/bin/pg_ctl -D /opt/local/var/db/postgresql84/defaultdb -l logfile start'
 export MAVEN_OPTS="-server -Xms256m -Xmx512m"
 alias zk='/Users/david/zookeeper-3.4.3/bin/zkServer.sh'
-export DEV_DIR=$HOME/Dropbox/dev
-alias dev='cd $DEV_DIR'
+export DEV_DIR="$HOME/Dropbox/dev"
+alias dev="cd $DEV_DIR"
 function d() {
   cd $DEV_DIR/"$1"
 }
 alias class='cd ~/Dropbox/classes'
-alias pl='cd ~/Dropbox/classes/pl'
-alias net='cd ~/Dropbox/classes/networks'
+alias desktop='$HOME/Desktop'
 alias ..='cd ..'
 alias ...='cd ../../'
 
@@ -171,7 +172,7 @@ alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch' # supports
 
 alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
 alias find='amp -p "(.*)" find'
-# TODO alias gdiffstat='amp -p "(.*) " git diff --stat'
+alias gdiffstat='amp -p " (.*)\s*\|" git diff --stat'
 
 # give me variable expansion!
 alias subl='amp subl'
@@ -179,7 +180,8 @@ alias ga='amp git add'
 alias grm='amp git rm'
 alias gco='amp git checkout'
 alias gd='amp git diff'
-alias gdh='amp git diff HEAD'
+alias gdh='amp git diff --staged'
+alias gds='amp git diff --staged'
 alias gunstage='amp git unstage'
 alias cat='amp cat'
 alias less='amp less'
