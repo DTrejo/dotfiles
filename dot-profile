@@ -141,6 +141,7 @@ alias ls='ls -p'
 export TERM=xterm-color
 
 alias air='cd /Users/dtrejo/Documents/airpair.com'
+alias logs='heroku logs -n 10000 --tail'
 
 ##
 # Your previous /Users/david/.profile file was backed up as /Users/david/.profile.macports-saved_2012-08-09_at_12:28:22
@@ -172,7 +173,7 @@ alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch' # supports
 
 alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
 alias find='amp -p "(.*)" find'
-alias gdiffstat='amp -p " (.*)\s*\|" git diff --stat'
+alias gdiffstat='amp -p " ((?:\\/[\\w\\.\\-]+)+)" git diff --stat'
 
 # give me variable expansion!
 alias subl='amp subl'
@@ -187,7 +188,7 @@ alias cat='amp cat'
 alias less='amp less'
 
 alias gc='git commit'
-alias gp='git push'
+alias gp='amp git push'
 alias mocha='amp mocha'
 
 # less typing

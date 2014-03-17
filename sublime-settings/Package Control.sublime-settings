@@ -1,6 +1,7 @@
 {
 	"installed_packages":
 	[
+		"Alignment",
 		"Better CoffeeScript",
 		"CoffeeCompile",
 		"GitGutter",
@@ -11,6 +12,8 @@
 		"JsFormat",
 		"JSONLint",
 		"Markdown Preview",
-		"SideBarEnhancements"
+		"Ruby Slim",
+		"SideBarEnhancements",
+		"VAlign"
 	]
 }

@@ -72,3 +72,5 @@
 [user]
 	name = DTrejo
 	email = david.daniel.trejo@gmail.com
+[remote "origin"]
+	fetch = +refs/pull/*/head:refs/remotes/origin/pr/*
