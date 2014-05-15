@@ -192,3 +192,6 @@ local.properties
 # vagrant related
 .vagrant
 Vagrantfile
+
+# idea
+.idea
