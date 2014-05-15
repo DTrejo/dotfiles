@@ -1,9 +1,11 @@
 {
 	"installed_packages":
 	[
-		"Alignment",
+		"Abacus",
+		"AutoFileName",
 		"Better CoffeeScript",
 		"CoffeeCompile",
+		"EditorConfig",
 		"GitGutter",
 		"Handlebars",
 		"HTML Mustache",
@@ -11,9 +13,13 @@
 		"HTML5",
 		"JsFormat",
 		"JSONLint",
+		"LoremIpsum",
 		"Markdown Preview",
 		"Ruby Slim",
+		"Rust",
+		"Sass",
 		"SideBarEnhancements",
-		"VAlign"
+		"Stylus",
+		"SyncedSideBar"
 	]
 }
