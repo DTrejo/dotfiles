@@ -13,13 +13,16 @@ alias g='git'
 alias copy='pbcopy'
 alias paste='pbpaste'
 alias todos='git grep -in todo'
-alias cpretty='paste | json | copy'
+alias prettyjson='paste | json | copy'
+alias uglyjs='paste | uglifyjs - | copy'
+alias prettycss='paste | css-beautify -f - | copy'
+
 # Autocomplete for 'g' alias as well
 # complete -o default -o nospace -F git g
 
 # for fast multiple terminal navigation to same dir
 alias mark='pwd | pbcopy'
-alias go='cd `pbpaste`'
+alias goo='cd `pbpaste`'
 alias ql='qlmanage -p 2>/dev/null' # quicklook via terminal
 
 umask 002 # prevent permissions problems
@@ -96,6 +99,10 @@ fi
 if [[ "$OSTYPE" == 'darwin12' ]]; then
   alias rm='del'
 fi
+# also mavericks
+if [[ "$OSTYPE" == 'darwin13' ]]; then
+  alias rm='del'
+fi
 
 # Random configuration stuff
 
@@ -141,7 +148,6 @@ alias ls='ls -p'
 # fix problem with tmux
 export TERM=xterm-color
 
-alias air='cd /Users/dtrejo/Documents/airpair.com'
 alias logs='heroku logs -n 10000 --tail'
 
 ##
@@ -162,6 +168,11 @@ for f in $(command ls ~/.node-completion); do
 done
 # }}}
 
+# makes it easy to find the main js file for any node package:
+# nresolve mypackage
+nresolve () {
+  node -p 'require.resolve("'$1'")'
+}
 
 #
 # amp aliases! YEEE
@@ -198,3 +209,20 @@ alias mocha='amp mocha'
 
 # less typing
 alias gamend='git amend'
+alias gci="git commit"
+alias guncommit='git uncommit'
+
+function signwtf() {
+  export NUMBER=$1
+  export URL="https://github.com/brianleroux/wtfjs/pull/$NUMBER.patch"
+  curl $URL | git am --signoff
+}
+
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOPATH/bin
+
+export PATH="$HOME/.rbenv/bin:$PATH"
+
+if [[ $(which rbenv) ]]; then
+  eval "$(rbenv init -)"
+fi
