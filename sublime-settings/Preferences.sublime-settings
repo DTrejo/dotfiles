@@ -6,6 +6,12 @@
 	"highlight_line": true,
 	"ignored_packages":
 	[
+		"HTML-CSS-JS Prettify",
+		"EditorConfig",
+		"Rust",
+		"SideBarEnhancements",
+		"Better CoffeeScript",
+		"GitGutter"
 	],
 	"rulers":
 	[
