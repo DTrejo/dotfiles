@@ -195,3 +195,7 @@ Vagrantfile
 
 # idea
 .idea
+
+# sass cache things
+.sass-cache
+
