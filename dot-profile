@@ -52,7 +52,7 @@ gb() {
 
 # opens the github page for the current repo, written by @kurisuchan
 function gh() {
-  open `git remote -v | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
+  open `git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
 }
 
 # rm does move to trash
