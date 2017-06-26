@@ -13,7 +13,7 @@ to install.
 
 ## What it looks like
 
-![Screenshot of my terminal](https://dl.dropbox.com/u/10047/dotfiles-preview.png "DTrejo's terminal")
+![Screenshot of my terminal](https://user-images.githubusercontent.com/56119/27526564-aa5e7c32-59fb-11e7-865b-46ee64874a62.png)
 
 # What will it do?
 - install my ~/.profile, ~/.gitconfig, and ~/.gitignore
