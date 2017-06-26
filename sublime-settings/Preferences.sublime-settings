@@ -1,17 +1,23 @@
 {
+	"afn_valid_scopes":
+	[
+		"string",
+		"css",
+		"sass",
+		"less",
+		"scss",
+		"jade"
+	],
 	"auto_complete": false,
 	"color_scheme": "Packages/Color Scheme - Default/Twilight.tmTheme",
 	"ensure_newline_at_eof_on_save": true,
-	"font_size": 18,
+	"font_size": 16,
 	"highlight_line": true,
 	"ignored_packages":
 	[
-		"Rust",
-		"Better CoffeeScript",
-		"SideBarEnhancements",
-		"GitGutter",
+		"EditorConfig",
 		"HTML-CSS-JS Prettify",
-		"EditorConfig"
+		"SideBarEnhancements"
 	],
 	"rulers":
 	[
