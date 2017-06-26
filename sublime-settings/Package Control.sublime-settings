@@ -1,4 +1,8 @@
 {
+	"bootstrapped": true,
+	"in_process_packages":
+	[
+	],
 	"installed_packages":
 	[
 		"Abacus",
@@ -6,11 +10,11 @@
 		"Better CoffeeScript",
 		"CoffeeCompile",
 		"Color Highlighter",
+		"DataConverter",
 		"EditorConfig",
 		"EJS",
 		"Elm Language Support",
 		"GitGutter",
-		"GitGutter-Edge",
 		"Handlebars",
 		"HTML Mustache",
 		"HTML-CSS-JS Prettify",
@@ -24,11 +28,14 @@
 		"JSONLint",
 		"LoremIpsum",
 		"Markdown Preview",
+		"Package Control",
 		"Pretty JSON",
 		"Ruby Slim",
-		"Rust",
+		"Rust Enhanced",
 		"Sass",
 		"SideBarEnhancements",
+		"Simple JSX",
+		"StandardFormat",
 		"Stylus",
 		"SublimeLinter-jshint",
 		"SyncedSideBar"
