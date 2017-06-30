@@ -1,3 +1,21 @@
+set -e
+
+# equivalent of:
+# remember current branch
+# git up BRANCH_TO_UPDATE BRANCH_TO_REBASE_ON
+# git stash if needed
+# git checkout BRANCH_TO_UPDATE
+# git fetch && git rebase BRANCH_TO_REBASE_ON
+# diffstat
+# go back to current branch
+#
+# useful for when you want to update a ton of branches to be on top of another
+# without spending tons of time doing stashes and branch switching.
+#
+# For example:
+#     git up master # local master is now up to date with origin/master
+#     git up myfeature master # local myfeature is now rebased on master.
+#
 # inspired by `git reup`
 # http://nuclearsquid.com/writings/git-tricks-tips-workflows/
 

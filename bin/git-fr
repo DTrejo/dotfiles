@@ -1,3 +1,11 @@
+set -e
+
+# equivalent of:
+# git stash if needed
+# git fetch && git rebase origin/master
+# git stash pop if needed
+# diffstat
+
 # inspired by `git reup`
 # http://nuclearsquid.com/writings/git-tricks-tips-workflows/
 
