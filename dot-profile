@@ -1,7 +1,7 @@
 #
 # aliases
 #
-alias editprofile='subl_wait ~/.profile; . ~/.profile'
+alias editprofile='subl -w ~/.profile; . ~/.profile'
 alias o='open .'
 alias n='npm'
 alias s='subl .'
