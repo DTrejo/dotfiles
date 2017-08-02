@@ -103,6 +103,10 @@ fi
 if [[ "$OSTYPE" == 'darwin13' ]]; then
   alias rm='del'
 fi
+# sierra
+if [[ "$OSTYPE" == 'darwin16' ]]; then
+  alias rm='del'
+fi
 
 # Random configuration stuff
 
@@ -190,6 +194,7 @@ alias gdiffstat='amp -p " ((?:\\/[\\w\\.\\-]+)+)" git diff --stat'
 # give me variable expansion!
 alias subl='amp subl'
 alias ga='amp git add'
+alias gap='amp git add -p'
 alias grm='amp git rm'
 alias gmv='amp git mv'
 alias gco='amp git checkout'
@@ -200,6 +205,8 @@ alias gunstage='amp git unstage'
 alias gblame='amp git blame'
 alias gup='amp git up' # my rebase helper script, see dtrejo/dotfiles/bin/git-up
 alias gf='git fetch'
+alias npx='amp npx'
+alias x='amp npx'
 alias cat='amp cat'
 alias less='amp less'
 

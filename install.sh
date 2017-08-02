@@ -18,7 +18,3 @@ done
 
 echo Also Linking ~/bin to $BASE/bin
 ln -s $BASE/bin $HOME/bin
-
-echo Attempting to install global npm packages
-npm -g install run ampline travisify serve readmetree urn pkginit npm-search \
-nave mdtoc jsontool jshint js-beautify ghcopy component
