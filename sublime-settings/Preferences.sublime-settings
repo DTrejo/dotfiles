@@ -8,10 +8,10 @@
 		"scss",
 		"jade"
 	],
+	"font_size": 16,
 	"auto_complete": false,
 	"color_scheme": "Packages/Color Scheme - Default/Twilight.tmTheme",
 	"ensure_newline_at_eof_on_save": true,
-	"font_size": 16,
 	"highlight_line": true,
 	"ignored_packages":
 	[
@@ -27,5 +27,6 @@
 	"save_on_focus_lost": true,
 	"tab_size": 2,
 	"translate_tabs_to_spaces": true,
-	"trim_trailing_white_space_on_save": true
+	"trim_trailing_white_space_on_save": true,
+	"theme": "Adaptive.sublime-theme"
 }
