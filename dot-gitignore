@@ -38,7 +38,6 @@ Icon?
 *.bzip
 
 # Logs and databases #
-*.sql
 *.sqlite
 
 # Vim #
@@ -62,6 +61,10 @@ tramp
 *.tmproj
 *.tmproject
 tmtags
+
+# Sublime #
+*.sublime-project
+*.sublime-workspace
 
 # Redcar #
 .redcar
@@ -198,3 +201,4 @@ Vagrantfile
 # sass cache things
 .sass-cache
 
+.vscode

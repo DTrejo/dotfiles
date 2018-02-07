@@ -9,7 +9,7 @@ alias m='subl .'
 alias bj='bundle install -j8'
 alias difflast='git diff HEAD^ HEAD > ~/Desktop/diff.diff'
 alias gdiff='git diff --no-index --color'
-alias g='git'
+alias g='amp git'
 alias copy='pbcopy'
 alias paste='pbpaste'
 alias todos='git grep -in todo'
@@ -53,6 +53,22 @@ gb() {
 # opens the github page for the current repo, written by @kurisuchan
 function gh() {
   open `git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
+}
+
+function prstable() { # by David Trejo
+  # same as gh but without the "open"
+  githubUrl=`git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
+  # same as gb()
+  branch=`git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'`
+  open "$githubUrl/compare/stable...$branch?expand=1"
+}
+
+function prdevelop() { # by David Trejo
+  # same as gh but without the "open"
+  githubUrl=`git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
+  # same as gb()
+  branch=`git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'`
+  open "$githubUrl/compare/develop...$branch?expand=1"
 }
 
 # rm does move to trash
@@ -185,7 +201,7 @@ nresolve () {
 
 # give me variable saving!
 alias gs='amp -p "...(.*)$" git status -s'
-alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch' # supports -a, -r flags
+alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch --sort=-committerdate' # supports -a, -r flags
 
 alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
 alias find='amp -p "(.*)" find'
@@ -212,12 +228,21 @@ alias less='amp less'
 
 alias gc='git commit'
 alias gp='amp git push'
+alias gpu='amp git push -u origin `gb`'
 alias mocha='amp mocha'
+alias phpfix='amp /usr/local/Cellar/php-cs-fixer/2.7.1/php-cs-fixer fix --rules=@PSR2'
 
 # less typing
 alias gamend='git amend'
 alias gci="git commit"
 alias guncommit='git uncommit'
+
+# via https://stackoverflow.com/a/19135644
+alias gitbranchauthors="git for-each-ref --format='%(committerdate) %09 %(authorname) %09 %(refname)' | sort -k5n -k2M -k3n -k4n"
+
+function newbranchcommit() {
+  git checkout -b "${$1// /-}" && git commit --allow-empty -m "$1"
+}
 
 function signwtf() {
   export NUMBER=$1
@@ -233,5 +258,4 @@ export PATH=$PATH:$GOPATH/bin
 #   eval "$(rbenv init -)"
 # fi
 
-[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm" # Load RVM into a shell session *as a function
-export PATH="$HOME/.rvm/bin:$PATH" # Add RVM to PATH for scripting
+alias lock="open /System/Library/Frameworks/ScreenSaver.framework/Versions/A/Resources/ScreenSaverEngine.app"
