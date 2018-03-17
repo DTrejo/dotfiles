@@ -7,6 +7,8 @@
 	[
 		"Abacus",
 		"AutoFileName",
+		"Babel",
+		"Babel Snippets",
 		"Better CoffeeScript",
 		"CoffeeCompile",
 		"Color Highlighter",
@@ -34,7 +36,6 @@
 		"Rust Enhanced",
 		"Sass",
 		"SideBarEnhancements",
-		"Simple JSX",
 		"StandardFormat",
 		"Stylus",
 		"SublimeLinter-jshint",
