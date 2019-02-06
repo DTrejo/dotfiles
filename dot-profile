@@ -130,6 +130,10 @@ fi
 if [[ "$OSTYPE" == 'darwin16' ]]; then
   alias rm='del'
 fi
+# mojave
+if [[ "$OSTYPE" == 'darwin17' ]]; then
+  alias rm='del'
+fi
 
 # Random configuration stuff
 

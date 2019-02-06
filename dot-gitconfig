@@ -3,6 +3,7 @@
 	autocrlf = input
 	safecrlf = true
 	whitespace=fix,-indent-with-non-tab,trailing-space,cr-at-eol
+	editor = code --wait
 [apply]
 	whitespace = fix
 [color]
