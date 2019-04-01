@@ -5,7 +5,8 @@ running the install script, so you know what's going on.
 
 Run
 
-    git clone git@github.com:DTrejo/dotfiles.git
+    # git clone this repo
+    cd dotfiles
     chmod +x install.sh
     ./install.sh
 
