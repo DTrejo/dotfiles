@@ -1,11 +1,11 @@
 #
 # aliases
 #
-alias editprofile='subl -w ~/.profile; . ~/.profile'
+alias editprofile='"code" --wait -w ~/.profile; . ~/.profile'
 alias o='open .'
 alias n='npm'
-alias s='subl .'
-alias m='subl .'
+alias s='code .'
+alias m='code .'
 alias c='code .'
 alias bj='bundle install -j8'
 alias difflast='git diff HEAD^ HEAD > ~/Desktop/diff.diff'
@@ -31,8 +31,8 @@ export JOBS=4 # for faster node building
 export HISTCONTROL=ignoredups
 export HISTSIZE=10000000
 export HISTFILESIZE=10000000
-export EDITOR='subl -w'
-export EDITOR='subl -w'
+export EDITOR='code -w'
+export EDITOR='code -w'
 export PAGER="less"
 export CLICOLOR="yes"
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
@@ -189,16 +189,6 @@ alias logs='heroku logs -n 10000 --tail'
 export PATH=/opt/local/bin:/opt/local/sbin:$PATH
 # Finished adapting your PATH environment variable for use with MacPorts.
 
-
-# {{{
-# Node Completion - Auto-generated, do not touch.
-shopt -s progcomp
-for f in $(command ls ~/.node-completion); do
-  f="$HOME/.node-completion/$f"
-  test -f "$f" && . "$f"
-done
-# }}}
-
 # makes it easy to find the main js file for any node package:
 # nresolve mypackage
 nresolve () {
@@ -219,7 +209,7 @@ alias find='amp -p "(.*)" find'
 alias gdiffstat='amp -p " ((?:\\/[\\w\\.\\-]+)+)" git diff --stat'
 
 # give me variable expansion!
-alias subl='amp subl'
+alias subl='amp code'
 alias code='amp code'
 alias ga='amp git add'
 alias gap='amp git add -p'
@@ -265,9 +255,8 @@ function signwtf() {
 export GOPATH=$HOME/go
 export PATH=$PATH:$GOPATH/bin
 
-# export PATH="$HOME/.rbenv/bin:$PATH"
-# if [[ $(which rbenv) ]]; then
-#   eval "$(rbenv init -)"
-# fi
-
 alias lock="open /System/Library/Frameworks/ScreenSaver.framework/Versions/A/Resources/ScreenSaverEngine.app"
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "/usr/local/opt/nvm/nvm.sh" ] && . "/usr/local/opt/nvm/nvm.sh"  # This loads nvm
+[ -s "/usr/local/opt/nvm/etc/bash_completion" ] && . "/usr/local/opt/nvm/etc/bash_completion"  # This loads nvm bash_completion
