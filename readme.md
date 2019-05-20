@@ -21,3 +21,9 @@ to install.
 - move your own versions of scripts into backup files
 - install command line tools from npm that I find handy
 - Set up **[ampline](https://github.com/DTrejo/ampline)** - which will make you way **faster with the git CLI**.
+
+## TODO
+- recommend `brew install nvm`
+- recommend `npm -g i ampline`
+- Rewrite install script in node so there's fewer bugs w/ it
+- Don't forget to symlink `~/bin` to `./bin`
