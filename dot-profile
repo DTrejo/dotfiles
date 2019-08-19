@@ -244,8 +244,8 @@ alias gitbranchauthors="git for-each-ref --format='%(committerdate) %09 %(author
 
 # Tired of writing long commands to shell into your docker image?
 # Usage:
-#   dsh registry.corp.creditkarma.com/pie/cci-tf-ansible-pup-node12:latest
-#   dsh registry.corp.creditkarma.com/pie/cci-tf-ansible-pup-node12:latest --rm
+#   dsh node:latest
+#   dsh node:latest --rm
 # By David Trejo & Travis Fillmore
 function dsh() {
   local url="$1"
