@@ -110,33 +110,31 @@ function del() {
     shift
   done
 }
+
 # only add to mac, in a fragile way.
 if [[ "$OSTYPE" == 'darwin10.0' ]]; then
   alias rm='del'
 fi
-# also lion
-if [[ "$OSTYPE" == 'darwin11' ]]; then
+if [[ "$OSTYPE" == 'darwin11' ]]; then # also lion
   alias rm='del'
 fi
-# also mountain lion
-if [[ "$OSTYPE" == 'darwin12' ]]; then
+if [[ "$OSTYPE" == 'darwin12' ]]; then # also mountain lion
   alias rm='del'
 fi
-# also mavericks
-if [[ "$OSTYPE" == 'darwin13' ]]; then
+if [[ "$OSTYPE" == 'darwin13' ]]; then # also mavericks
   alias rm='del'
 fi
-# sierra
-if [[ "$OSTYPE" == 'darwin16' ]]; then
+if [[ "$OSTYPE" == 'darwin16' ]]; then # sierra
   alias rm='del'
 fi
-# mojave
-if [[ "$OSTYPE" == 'darwin17' ]]; then
+if [[ "$OSTYPE" == 'darwin17' ]]; then # high sierra
+  alias rm='del'
+fi
+if [[ "$OSTYPE" == 'darwin18' ]]; then # mojave
   alias rm='del'
 fi
 
 # Random configuration stuff
-
 # add bash completion
 # if [ -f /opt/local/etc/bash_completion ]; then
 #   . /opt/local/etc/bash_completion
@@ -246,7 +244,6 @@ alias gitbranchauthors="git for-each-ref --format='%(committerdate) %09 %(author
 # Usage:
 #   dsh node:latest
 #   dsh node:latest --rm
-# By David Trejo & Travis Fillmore
 function dsh() {
   local url="$1"
   [[ -z "$url" ]] && echo "Please pass a docker image url." && return 1
@@ -275,3 +272,6 @@ alias lock="open /System/Library/Frameworks/ScreenSaver.framework/Versions/A/Res
 export NVM_DIR="$HOME/.nvm"
 [ -s "/usr/local/opt/nvm/nvm.sh" ] && . "/usr/local/opt/nvm/nvm.sh"  # This loads nvm
 [ -s "/usr/local/opt/nvm/etc/bash_completion" ] && . "/usr/local/opt/nvm/etc/bash_completion"  # This loads nvm bash_completion
+
+alias pgstart='pg_ctl -D /usr/local/var/postgres start'
+alias pgkill='pg_ctl -D /usr/local/var/postgres stop'
