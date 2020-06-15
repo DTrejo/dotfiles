@@ -133,6 +133,9 @@ fi
 if [[ "$OSTYPE" == 'darwin18' ]]; then # mojave
   alias rm='del'
 fi
+if [[ "$OSTYPE" == 'darwin19' ]]; then # catalina
+  alias rm='del'
+fi
 
 # Random configuration stuff
 # add bash completion
