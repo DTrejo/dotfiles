@@ -17,6 +17,10 @@ alias todos='git grep -in todo'
 alias prettyjson='paste | json | copy'
 alias uglyjs='paste | uglifyjs - | copy'
 alias prettycss='paste | css-beautify -f - | copy'
+alias sl='ls -p'
+alias ls='ls -p'
+alias logs='heroku logs -n 10000 --tail'
+alias k='kubectl'
 
 # Autocomplete for 'g' alias as well
 # complete -o default -o nospace -F git g
@@ -137,20 +141,17 @@ if [[ "$OSTYPE" == 'darwin19' ]]; then # catalina
   alias rm='del'
 fi
 
-# Random configuration stuff
-# add bash completion
-# if [ -f /opt/local/etc/bash_completion ]; then
-#   . /opt/local/etc/bash_completion
-# fi
-
 alias pr='post-review'
 alias pgstart='postgres -D /usr/local/var/postgres'
 export MAVEN_OPTS="-server -Xms256m -Xmx512m"
 alias zk='/Users/david/zookeeper-3.4.3/bin/zkServer.sh'
-export DEV_DIR="$HOME/Dropbox/dev"
-alias dev="cd $DEV_DIR"
+export DEV_DIR="$HOME/dev"
 function d() {
-  cd $DEV_DIR/"$1"
+  cd "$DEV_DIR"/"$1"
+}
+export REPOS_DIR="$HOME/repos"
+function r() {
+  cd "$REPOS_DIR"/"$1"
 }
 alias class='cd ~/Dropbox/classes'
 alias desktop='$HOME/Desktop'
@@ -165,30 +166,14 @@ ulimit -S -n 5000
 #
 source ~/.private
 
-#
-# if stuff snuck into ~/.bashrc, source it
-#
-# source ~/.bashrc
-
 # add git extensions/scripts to path
 export PATH=$PATH:$HOME/bin
 # add mactex scripts
 export PATH=$PATH:/usr/texbin
-alias sl='ls -p'
-alias ls='ls -p'
 
 # fix problem with tmux
 export TERM=xterm-color
 
-alias logs='heroku logs -n 10000 --tail'
-
-##
-# Your previous /Users/david/.profile file was backed up as /Users/david/.profile.macports-saved_2012-08-09_at_12:28:22
-##
-
-# MacPorts Installer addition on 2012-08-09_at_12:28:22: adding an appropriate PATH variable for use with MacPorts.
-export PATH=/opt/local/bin:/opt/local/sbin:$PATH
-# Finished adapting your PATH environment variable for use with MacPorts.
 
 # makes it easy to find the main js file for any node package:
 # nresolve mypackage

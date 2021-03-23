@@ -136,7 +136,6 @@ install_manifest.txt
 # Node #
 lib-cov
 *.seed
-*.csv
 *.dat
 *.out
 *.pid
@@ -201,4 +200,5 @@ Vagrantfile
 # sass cache things
 .sass-cache
 
-.vscode
+.vscode/*
+!.vscode/launch.json

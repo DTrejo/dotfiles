@@ -2,7 +2,7 @@ set -e
 
 # equivalent of:
 # git stash if needed
-# git fetch && git rebase origin/master
+# git fetch && git rebase origin/main
 # git stash pop if needed
 # diffstat
 
@@ -19,7 +19,7 @@ else
   SHOULD_POP=true
 fi
 
-git fetch && git rebase origin/master
+git fetch && git rebase origin/main
 
 if [[ $SHOULD_POP == true ]]; then
   git stash pop --quiet

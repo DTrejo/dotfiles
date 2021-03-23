@@ -13,8 +13,8 @@ set -e
 # without spending tons of time doing stashes and branch switching.
 #
 # For example:
-#     git up master # local master is now up to date with origin/master
-#     git up myfeature master # local myfeature is now rebased on master.
+#     git up main # local main is now up to date with origin/main
+#     git up myfeature main # local myfeature is now rebased on main.
 #
 # inspired by `git reup`
 # http://nuclearsquid.com/writings/git-tricks-tips-workflows/
