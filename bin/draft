@@ -1,0 +1,112 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'json'
+
+USAGE = %(
+What does `draft` do?
+Draft sets up a Github draft PR based on the supplied JIRA ticket.
+
+Usage:
+  cd your-repo
+  draft SEC-1234
+
+  # Or, pass in a URL
+  draft https://chime.atlassian.net/browse/SEC-4431
+
+How does it work?
+* creates branch named after jira ticket based on latest main
+* swaps you to that branch
+* creates an empty commit with the JIRA title in it
+* pushes the branch to github
+* opens a draft PR
+
+Feedback? Message David Trejo.
+)
+HELP = ['-h', '--help'].freeze
+DEBUG = ENV['DEBUG']
+
+def main
+  unless `which jira`
+    puts %(Please install go-jira:
+      brew install go-jira
+      # Follow instructions:
+      # https://github.com/go-jira/jira#quickstart-api-token-and-keychain
+    )
+    exit 1
+  end
+  unless `which gh`
+    puts %(Please install gh:
+      brew install gh
+    )
+    exit 1
+  end
+  help = ARGV.find { |arg| HELP.include?(arg) }
+  if help
+    puts USAGE
+    return
+  end
+
+  create_draft
+end
+
+def create_draft
+  key = ARGV.map { |arg| arg.match(/\b([A-Z]+-\d+)\b/i).to_s.upcase }.keep_if { |x| x }.first
+
+  unless key
+    puts "Sorry, could not find a JIRA key in #{ARGV}"
+    return
+  end
+  debug("key #{key}")
+
+  current_branch = `git branch --show-current`
+  default_branch = `git remote show origin | sed -n '/HEAD branch/s/.*: //p'`
+  if current_branch != default_branch
+    stash = `git stash push -m autosave-draft-#{Time.now.to_i}` if `git status -s`.strip
+    debug(stash)
+
+    checkout_default = `git checkout #{default_branch}`
+    debug(checkout_default)
+  end
+  pull = `git pull --rebase`
+  debug(pull)
+
+  issue = parse_issue(`jira view #{key} -t json`)
+  summary = issue.dig(:fields, :summary)
+  description = issue.dig(:fields, :description)
+  debug(summary, description)
+
+  # TODO: consider removing stopwords first
+  # https://github.com/brenes/stopwords-filter/blob/master/lib/stopwords/snowball/locales/en.csv
+  branch_name = "#{key}-#{summary.split(' ')[0..2].map { |w| w.gsub(/[^a-z0-9]/i, '') }.join('-')}"
+
+  create_branch = `git branch #{branch_name}`
+  debug(create_branch)
+
+  checkout = `git checkout #{branch_name}`
+  debug(checkout)
+
+  commit = `git commit --allow-empty -m '#{key} #{summary}\n\n#{key}\n#{description}'`
+  debug(commit)
+
+  push = `git push -u origin #{branch_name}`
+  debug(push)
+
+  pr = `gh pr create -a @me -d -f`
+  debug(pr)
+
+  view = `gh pr view #{branch_name} --web`
+  debug(view)
+end
+
+def parse_issue(output)
+  JSON.parse(output, symbolize_names: true)
+end
+
+def debug(**args)
+  return unless DEBUG
+
+  puts(**args)
+end
+
+main

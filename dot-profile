@@ -56,9 +56,9 @@ gb() {
 }
 
 # opens the github page for the current repo, written by @kurisuchan
-function gh() {
-  open `git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
-}
+# function gh() {
+#   open `git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
+# }
 
 # for ghe, by david reiman
 function ghe() {
@@ -140,6 +140,9 @@ fi
 if [[ "$OSTYPE" == 'darwin19' ]]; then # catalina
   alias rm='del'
 fi
+if [[ "$OSTYPE" == 'darwin20' ]]; then # big sur
+  alias rm='del'
+fi
 
 alias pr='post-review'
 alias pgstart='postgres -D /usr/local/var/postgres'
@@ -164,7 +167,7 @@ ulimit -S -n 5000
 #
 # pull in private things or things only applicable to this machine
 #
-source ~/.private
+source $HOME/.private
 
 # add git extensions/scripts to path
 export PATH=$PATH:$HOME/bin
@@ -188,7 +191,7 @@ nresolve () {
 
 # give me variable saving!
 alias gs='amp -p "...(.*)$" git status -s'
-alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch --sort=-committerdate' # supports -a, -r flags
+alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch --sort=-committerdate | head -n 10' # supports -a, -r flags
 
 alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
 alias find='amp -p "(.*)" find'
@@ -263,3 +266,5 @@ export NVM_DIR="$HOME/.nvm"
 
 alias pgstart='pg_ctl -D /usr/local/var/postgres start'
 alias pgkill='pg_ctl -D /usr/local/var/postgres stop'
+
+alias dr="docker-compose run --rm "
