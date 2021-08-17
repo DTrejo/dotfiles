@@ -103,7 +103,7 @@ def parse_issue(output)
   JSON.parse(output, symbolize_names: true)
 end
 
-def debug(**args)
+def debug(*args)
   return unless DEBUG
 
   puts(**args)
