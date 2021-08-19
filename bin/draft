@@ -13,7 +13,7 @@ Usage:
   draft SEC-1234
 
   # Or, pass in a URL
-  draft https://chime.atlassian.net/browse/SEC-4431
+  draft https://yourcompany.atlassian.net/browse/SEC-4431
 
 How does it work?
 * creates branch named after jira ticket based on latest main
