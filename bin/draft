@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'open3'
 
 USAGE = %(
 What does `draft` do?
@@ -27,7 +28,7 @@ HELP = ['-h', '--help'].freeze
 DEBUG = ENV['DEBUG']
 
 def main
-  unless `which jira`
+  if run('which jira').empty?
     puts %(Please install go-jira:
       brew install go-jira
       # Follow instructions:
@@ -35,7 +36,7 @@ def main
     )
     exit 1
   end
-  unless `which gh`
+  if run('which gh').empty?
     puts %(Please install gh:
       brew install gh
     )
@@ -59,19 +60,19 @@ def create_draft
   end
   debug("key #{key}")
 
-  current_branch = `git branch --show-current`
-  default_branch = `git remote show origin | sed -n '/HEAD branch/s/.*: //p'`
+  current_branch = run('git branch --show-current')
+  default_branch = run('gh repo view --json defaultBranchRef --jq .defaultBranchRef.name')
   if current_branch != default_branch
-    stash = `git stash push -m autosave-draft-#{Time.now.to_i}` if `git status -s`.strip
+    stash = run("git stash push -m autosave-draft-#{Time.now.to_i}") if run('git status -s')
     debug(stash)
 
-    checkout_default = `git checkout #{default_branch}`
+    checkout_default = run("git checkout #{default_branch}")
     debug(checkout_default)
   end
-  pull = `git pull --rebase`
+  pull = run('git pull --rebase')
   debug(pull)
 
-  issue = parse_issue(`jira view #{key} -t json`)
+  issue = parse_issue(run("jira view #{key} -t json"))
   summary = issue.dig(:fields, :summary)
   description = issue.dig(:fields, :description)
   debug(summary, description)
@@ -80,22 +81,22 @@ def create_draft
   # https://github.com/brenes/stopwords-filter/blob/master/lib/stopwords/snowball/locales/en.csv
   branch_name = "#{key}-#{summary.split(' ')[0..2].map { |w| w.gsub(/[^a-z0-9]/i, '') }.join('-')}"
 
-  create_branch = `git branch #{branch_name}`
+  create_branch = run("git branch #{branch_name}")
   debug(create_branch)
 
-  checkout = `git checkout #{branch_name}`
+  checkout = run("git checkout #{branch_name}")
   debug(checkout)
 
-  commit = `git commit --allow-empty -m '#{key} #{summary}\n\n#{key}\n#{description}'`
+  commit = run('git commit --allow-empty -m', "#{key} #{summary}\n\n#{key}\n#{description}")
   debug(commit)
 
-  push = `git push -u origin #{branch_name}`
+  push = run("git push -u origin #{branch_name}")
   debug(push)
 
-  pr = `gh pr create -a @me -d -f`
+  pr = run('gh pr create -a @me -d -f')
   debug(pr)
 
-  view = `gh pr view #{branch_name} --web`
+  view = run("gh pr view #{branch_name} --web")
   debug(view)
 end
 
@@ -103,10 +104,18 @@ def parse_issue(output)
   JSON.parse(output, symbolize_names: true)
 end
 
+def run(command, *args, log_error: false)
+  program, simple_args = command.split(' ', 2)
+  output, status = Open3.capture2(program, *simple_args.split(' '), *args)
+  out = output.strip
+  puts(out) if log_error && status != 0
+  out
+end
+
 def debug(*args)
   return unless DEBUG
 
-  puts(**args)
+  puts(*args)
 end
 
 main

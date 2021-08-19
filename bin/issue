@@ -1,0 +1,135 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'json'
+require 'open3'
+
+USAGE = %(
+What does `issue` do?
+Issue sets up a JIRA issue based on your current PR.
+
+Setup:
+  # Run this once per repo
+  git config issue.project ENG
+
+  # Enable SSO, 'read:org', and 'read:discussion', for your Github token
+  open https://github.com/settings/tokens
+
+  # Set up JIRA auto-link references in Github settings
+  # https://github.com/your-company/your-repo/settings/key_links
+
+Usage:
+  cd your-repo
+  issue
+  https://yourcompany.atlassian.net/browse/ENG-1234
+
+How does it work?
+* looks at your branch, finds PR in github
+* creates JIRA issue with the same title and description
+* edits PR to add the JIRA issue key to the title and description
+* opens your browser to the new JIRA issue
+
+Settings
+  Stop the browser from opening after creation:
+    git config issue.browse false
+
+  You've probably already set this in order to use Github:
+    # git config user.email your.email@example.com
+
+Feedback? Message David Trejo.
+)
+HELP = ['-h', '--help'].freeze
+DEBUG = ENV['DEBUG']
+
+def main
+  if run('which jira').empty?
+    puts %(Please install go-jira:
+      brew install go-jira
+      # Follow instructions:
+      # https://github.com/go-jira/jira#quickstart-api-token-and-keychain
+    )
+    exit 1
+  end
+  if run('which gh').empty?
+    puts %(Please install gh:
+      brew install gh
+    )
+    exit 1
+  end
+  help = ARGV.find { |arg| HELP.include?(arg) }
+  if help
+    puts USAGE
+    return
+  end
+
+  create_issue
+end
+
+def create_issue
+  current_branch = run('git branch --show-current')
+  default_branch = run('gh repo view --json defaultBranchRef --jq .defaultBranchRef.name')
+  if current_branch == default_branch
+    puts %(Looks like you're on the default branch, #{default_branch}.
+Please switch to a feature branch with an open PR.
+Or, use `draft` to create a draft PR based on a JIRA ticket.)
+    return exit(1)
+  end
+
+  pr_json = run('gh pr view --json title,body,url')
+  debug({ pr_json: pr_json })
+  return exit(1) if pr_json.include?('no pull requests found')
+
+  pr = JSON.parse(pr_json, symbolize_names: true)
+
+  summary = pr[:title]
+  description = %(#{pr[:url]}
+#{pr[:body]}
+(Synced from Github by `issue`)
+)
+
+  email = run('git config user.email')
+  project = run('git config issue.project')
+  unless project
+    puts %(Please run `git config issue.project EXAMPLE`
+to set this repo's default JIRA project to EXAMPLE.
+You'll want to use your team's JIRA project shortcode.
+    )
+    return exit(1)
+  end
+  # TODO: someday give them a choice of similar issues prior to creating one!
+  issuetype = run('git config issue.issuetype')
+  issuetype = issuetype.empty? ? 'Story' : issuetype
+  no_browse = run('git config issue.browse')
+  browse = no_browse.empty? ? '-b' : ''
+  issue = run(
+    "jira create --noedit -p #{project} -i #{issuetype} #{browse}",
+    '-o', %(summary=#{summary}),
+    '-o', %(description=#{description}),
+    '-o', "assignee=#{email}"
+  )
+  issue_key = issue.match(/\b([A-Z]+-\d+)\b/i).to_s.upcase
+  pr_edit = run(
+    'gh pr edit',
+    '--title', "#{issue_key} #{pr[:title]}",
+    '--body', "#{issue_key}\n#{pr[:body]}",
+    log_error: true
+  )
+  debug(pr_edit)
+  puts issue
+end
+
+def run(command, *args, log_error: false)
+  program, simple_args = command.split(' ', 2)
+  output, status = Open3.capture2(program, *simple_args.split(' '), *args)
+  out = output.strip
+  puts(out) if log_error && status != 0
+  out
+end
+
+def debug(*args)
+  # return unless DEBUG
+
+  puts(*args)
+end
+
+main
