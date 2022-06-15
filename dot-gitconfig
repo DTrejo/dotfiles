@@ -76,4 +76,6 @@
 	user = DTrejo
 [user]
 	name = DTrejo
-	email = david.daniel.trejo@gmail.com
+	email = 56119+DTrejo@users.noreply.github.com
+[credential]
+	helper = osxkeychain

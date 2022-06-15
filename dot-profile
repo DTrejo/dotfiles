@@ -114,35 +114,7 @@ function del() {
     shift
   done
 }
-
-# only add to mac, in a fragile way.
-if [[ "$OSTYPE" == 'darwin10.0' ]]; then
-  alias rm='del'
-fi
-if [[ "$OSTYPE" == 'darwin11' ]]; then # also lion
-  alias rm='del'
-fi
-if [[ "$OSTYPE" == 'darwin12' ]]; then # also mountain lion
-  alias rm='del'
-fi
-if [[ "$OSTYPE" == 'darwin13' ]]; then # also mavericks
-  alias rm='del'
-fi
-if [[ "$OSTYPE" == 'darwin16' ]]; then # sierra
-  alias rm='del'
-fi
-if [[ "$OSTYPE" == 'darwin17' ]]; then # high sierra
-  alias rm='del'
-fi
-if [[ "$OSTYPE" == 'darwin18' ]]; then # mojave
-  alias rm='del'
-fi
-if [[ "$OSTYPE" == 'darwin19' ]]; then # catalina
-  alias rm='del'
-fi
-if [[ "$OSTYPE" == 'darwin20' ]]; then # big sur
-  alias rm='del'
-fi
+alias rm='del'
 
 alias pr='post-review'
 alias pgstart='postgres -D /usr/local/var/postgres'
@@ -266,5 +238,11 @@ export NVM_DIR="$HOME/.nvm"
 
 alias pgstart='pg_ctl -D /usr/local/var/postgres start'
 alias pgkill='pg_ctl -D /usr/local/var/postgres stop'
+
+export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
+
+export BASH_SILENCE_DEPRECATION_WARNING=1
+
+eval "$(rbenv init -)"
 
 alias dr="docker-compose run --rm "

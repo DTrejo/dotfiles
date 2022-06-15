@@ -127,7 +127,7 @@ def run(command, *args, log_error: false)
 end
 
 def debug(*args)
-  # return unless DEBUG
+  return unless DEBUG
 
   puts(*args)
 end
