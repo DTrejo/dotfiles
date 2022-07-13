@@ -66,6 +66,7 @@
 	autosetupmerge = true
 [push]
 	default = tracking
+	autoSetupRemote = true
 [rerere]
 	enabled = true
 [merge]
