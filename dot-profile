@@ -46,9 +46,17 @@ export PROMPT_COLOR='1;1;40m'
 parse_git_branch() {
   $(which git) branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
 }
+
 # ~/dev/dotfiles(my-branch-name)§
-export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]\[\e[0;32m\]§\[\e[0m\] "
-shopt -s checkwinsize cdspell
+# for bash only
+# export PS1="\w\[\e[0;33;49m\]\$(parse_git_branch)\[\e[0;0m\]\[\e[0;32m\]§\[\e[0m\] "
+
+# ~/dev/dotfiles(my-branch-name)§
+setopt PROMPT_SUBST
+export PS1="%~%F{yellow}\$(parse_git_branch)%F{green}§%f "
+
+# for bash only
+# shopt -s checkwinsize cdspell
 
 # for convenience of not typing branch names 24/7
 gb() {
