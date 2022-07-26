@@ -18,3 +18,6 @@ done
 
 echo Also Linking ~/bin to $BASE/bin
 ln -s $BASE/bin $HOME/bin
+
+echo "touch ~/.private, a place to put secrets"
+touch ~/.private
