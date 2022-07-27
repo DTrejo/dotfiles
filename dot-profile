@@ -76,17 +76,17 @@ function ghe() {
 
 function prstable() { # by David Trejo
   # same as gh but without the "open"
-  githubUrl=`git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
+  githubUrl=$(git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1)
   # same as gb()
-  branch=`git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'`
+  branch=$(git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/')
   open "$githubUrl/compare/stable...$branch?expand=1"
 }
 
 function prdevelop() { # by David Trejo
   # same as gh but without the "open"
-  githubUrl=`git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
+  githubUrl=$(git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1)
   # same as gb()
-  branch=`git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'`
+  branch=$(git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/')
   open "$githubUrl/compare/develop...$branch?expand=1"
 }
 
@@ -99,7 +99,7 @@ function del() {
       return
     fi
 
-    local file=`basename -- "$1"`
+    local file=$(basename -- "$1")
 
     # Chop trailing '/' if there
     file=${file%/}
@@ -108,13 +108,13 @@ function del() {
 
     if [ -e "$HOME/.Trash/$file" ]; then
       # Extract file and extension
-      local ext=`expr "$file" : ".*\(\.[^\.]*\)$"`
+      local ext=$(expr "$file" : ".*\(\.[^\.]*\)$")
       local base=${file%$ext}
 
       # Add a space between base and timestamp
       test -n "$base" && base="$base "
 
-      destination="/$base`date +%H-%M-%S`_$RANDOM$ext"
+      destination="/$base$(date +%H-%M-%S)_$RANDOM$ext"
     fi
 
     echo "Moving '$1' to '$HOME/.Trash$destination'"
