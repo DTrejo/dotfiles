@@ -235,6 +235,13 @@ function signwtf() {
   curl $URL | git am --signoff
 }
 
+# Run rspec files edited on this branch or not committed
+function spec() {
+  files=$(git diff --name-only main..)"\n"$(git diff --name-only)
+  echo bin/rspec $(echo "$files" | grep "_spec.rb" | uniq | tr '\n' ' ')
+       bin/rspec $(echo "$files" | grep "_spec.rb" | uniq | tr '\n' ' ')
+}
+
 export GOPATH=$HOME/go
 export PATH=$PATH:$GOPATH/bin
 
