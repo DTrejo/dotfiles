@@ -87,7 +87,14 @@ Or, use `draft` to create a draft PR based on a JIRA ticket.)
 (Synced from Github by `issue`)
 )
 
-  email = run('git config user.email')
+  email = run('git config issue.email')
+  unless email
+    puts %(Please run `git config issue.email YOUR.EMAIL@EXAMPLE.COM`
+to set your email to YOUR.EMAIL@EXAMPLE.COM.
+You'll want to use the same email you use to log into JIRA.
+    )
+    return exit(1)
+  end
   project = run('git config issue.project')
   unless project
     puts %(Please run `git config issue.project EXAMPLE`
