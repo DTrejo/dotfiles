@@ -237,7 +237,7 @@ function signwtf() {
 
 # Run rspec files edited on this branch or not committed
 function spec() {
-  files=$(git diff --name-only main..)"\n"$(git diff --name-only)
+  files=$(git diff --name-only main..)"\n"$(git diff --name-only)"\n"$(git diff --staged --name-only)
   echo bin/rspec $(echo "$files" | grep "_spec.rb" | uniq | tr '\n' ' ')
        bin/rspec $(echo "$files" | grep "_spec.rb" | uniq | tr '\n' ' ')
 }
