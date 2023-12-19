@@ -47,8 +47,6 @@ def main
       brew install go-jira
       # Follow instructions:
       # https://github.com/go-jira/jira#quickstart-api-token-and-keychain
-      # Be sure to set the following in your jira.d:
-      # authentication-method: api-token
     )
     exit 1
   end
