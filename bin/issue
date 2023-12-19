@@ -47,6 +47,8 @@ def main
       brew install go-jira
       # Follow instructions:
       # https://github.com/go-jira/jira#quickstart-api-token-and-keychain
+      # Be sure to set the following in your jira.d:
+      # authentication-method: api-token
     )
     exit 1
   end
@@ -88,7 +90,7 @@ Or, use `draft` to create a draft PR based on a JIRA ticket.)
 )
 
   email = run('git config issue.email')
-  unless email
+  if email.empty?
     puts %(Please run `git config issue.email YOUR.EMAIL@EXAMPLE.COM`
 to set your email to YOUR.EMAIL@EXAMPLE.COM.
 You'll want to use the same email you use to log into JIRA.
@@ -96,7 +98,7 @@ You'll want to use the same email you use to log into JIRA.
     return exit(1)
   end
   project = run('git config issue.project')
-  unless project
+  if project.empty?
     puts %(Please run `git config issue.project EXAMPLE`
 to set this repo's default JIRA project to EXAMPLE.
 You'll want to use your team's JIRA project shortcode.
@@ -112,7 +114,8 @@ You'll want to use your team's JIRA project shortcode.
     "jira create --noedit -p #{project} -i #{issuetype} #{browse}",
     '-o', %(summary=#{summary}),
     '-o', %(description=#{description}),
-    '-o', "assignee=#{email}"
+    '-o', "assignee=#{email}",
+    log_error: true
   )
   issue_key = issue.match(/\b([A-Z]+-\d+)\b/i).to_s.upcase
   pr_edit = run(
@@ -126,6 +129,7 @@ You'll want to use your team's JIRA project shortcode.
 end
 
 def run(command, *args, log_error: false)
+  debug(args)
   program, simple_args = command.split(' ', 2)
   output, status = Open3.capture2(program, *simple_args.split(' '), *args)
   out = output.strip

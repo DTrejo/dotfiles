@@ -254,6 +254,9 @@ export NVM_DIR="$HOME/.nvm"
 alias pgstart='pg_ctl -D /usr/local/var/postgres start'
 alias pgkill='pg_ctl -D /usr/local/var/postgres stop'
 
+export HOMEBREW_NO_ANALYTICS=1
+export PATH=$PATH:"/opt/homebrew/bin"
+brew shellenv
 export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
 
 export BASH_SILENCE_DEPRECATION_WARNING=1
