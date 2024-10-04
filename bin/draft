@@ -109,8 +109,21 @@ def create_draft
   push = run("git push -u origin #{branch_name}")
   debug(push)
 
-  pr = run('gh pr create -a @me -d -f')
-  debug(pr)
+  [
+    ".github/pull_request_template.md", ".github/PULL_REQUEST_TEMPLATE.md"
+  ].any? do |pr_template_path|
+    next if !File.exist?(pr_template_path)
+
+    Tempfile.create("github_description") do |file|
+      pull_request_template = File.read(pr_template_path)
+      file.write("#{description}\n\n---\n#{pull_request_template}")
+      file.flush
+
+      pr = run("gh pr create -a @me -d -f --body-file #{file.path}")
+      debug(pr)
+    end
+    true
+  end
 
   view = run("gh pr view #{branch_name} --web")
   debug(view)
