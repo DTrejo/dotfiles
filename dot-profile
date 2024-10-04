@@ -62,19 +62,11 @@ gb() {
   git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'
 }
 
-# opens the github page for the current repo, written by @kurisuchan
-# function gh() {
-#   open `git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
-# }
-# for ghe, by david reiman
-# function ghe() {
-#   git remote -v | awk '{ print $2 }' | sed 's/\.git//' | head -n 1 | xargs open
-#   # open `git remote -v | node -pe "require('fs').readFileSync('/dev/stdin').toString().split('\t')[2].split(' ')[0].replace('.git', '')"`
-# }
+# thanks @kurisuchan and david reiman for writing what this is based on.
 github_repository_url() {
   git remote -v | awk '{ print $2 }' | sed 's/\.git//' | head -n 1
 }
-function ghe() {
+ghe() {
   if [[ $(gb) == "main" || $(gb) == "master" ]]; then
     open "$(github_repository_url)"
   else
