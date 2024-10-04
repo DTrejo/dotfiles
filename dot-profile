@@ -71,8 +71,16 @@ gb() {
 #   git remote -v | awk '{ print $2 }' | sed 's/\.git//' | head -n 1 | xargs open
 #   # open `git remote -v | node -pe "require('fs').readFileSync('/dev/stdin').toString().split('\t')[2].split(' ')[0].replace('.git', '')"`
 # }
+github_repository_url() {
+  git remote -v | awk '{ print $2 }' | sed 's/\.git//' | head -n 1
+}
 function ghe() {
-  (gh pr view --web > /dev/null 2>&1) || (gh repo view --web > /dev/null)
+  if [[ $(gb) == "main" || $(gb) == "master" ]]; then
+    open "$(github_repository_url)"
+  else
+    # open the repo page
+    open "$(github_repository_url)/pull/$(gb)"
+  fi
 }
 
 function prstable() { # by David Trejo
