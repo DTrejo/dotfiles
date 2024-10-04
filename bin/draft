@@ -3,6 +3,7 @@
 
 require 'json'
 require 'open3'
+require 'tempfile'
 
 USAGE = %(
 What does `draft` do?
@@ -42,6 +43,12 @@ def main
     )
     exit 1
   end
+  if run('which pandoc').empty?
+    puts %(Please install gh:
+      brew install pandoc
+    )
+    exit 1
+  end
   help = ARGV.find { |arg| HELP.include?(arg) }
   if help
     puts USAGE
@@ -72,9 +79,18 @@ def create_draft
   pull = run('git pull --rebase')
   debug(pull)
 
-  issue = parse_issue(run("jira view #{key} -t json"))
+  issue = parse_issue(run("jira view -t json --expand=renderedFields #{key}"))
   summary = issue.dig(:fields, :summary)
-  description = issue.dig(:fields, :description)
+  description_html = issue.dig(:renderedFields, :description).gsub("\n", " ")
+  debug(summary, description_html)
+  description = nil
+  Tempfile.create("html") do |file|
+    file.write(description_html)
+    file.flush
+    description = run("pandoc --from=html --to=gfm-raw_html #{file.path}")
+  end
+  debug(summary, description)
+  description.gsub!(/([^\n ])\n([^\n ])/) { |_match| "#{$1} #{$2}" }
   debug(summary, description)
 
   # TODO: consider removing stopwords first
