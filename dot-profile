@@ -66,11 +66,13 @@ gb() {
 # function gh() {
 #   open `git remote -v | grep hub | grep fetch | awk '{print $2}' | sed 's/git@/http:\/\//' | sed 's/com:/com\//' | sed 's/\.git//' | head -n1`
 # }
-
 # for ghe, by david reiman
+# function ghe() {
+#   git remote -v | awk '{ print $2 }' | sed 's/\.git//' | head -n 1 | xargs open
+#   # open `git remote -v | node -pe "require('fs').readFileSync('/dev/stdin').toString().split('\t')[2].split(' ')[0].replace('.git', '')"`
+# }
 function ghe() {
-  git remote -v | awk '{ print $2 }' | sed 's/\.git//' | head -n 1 | xargs open
-  # open `git remote -v | node -pe "require('fs').readFileSync('/dev/stdin').toString().split('\t')[2].split(' ')[0].replace('.git', '')"`
+  (gh pr view --web > /dev/null 2>&1) || (gh repo view --web > /dev/null)
 }
 
 function prstable() { # by David Trejo
