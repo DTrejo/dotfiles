@@ -63,7 +63,7 @@ def create_draft
 
   unless key
     puts "Sorry, could not find a JIRA key in #{ARGV}"
-    return
+    exit 1
   end
   debug("key #{key}")
 
