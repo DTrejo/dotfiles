@@ -23,6 +23,7 @@ const generateSocialMediaImage = async ({
 
   const canvas = createCanvas(background.width, background.height)
   // p-3 color space does not seem to work in node-canvas :(
+  // Consider sharp or jimp to fix this, maybe...
   const ctx = canvas.getContext("2d", { colorSpace: "display-p3" })
   ctx.preserveDrawingBuffer = true
   ctx.imageSmoothingEnabled = false
@@ -125,7 +126,6 @@ if (DEBUG) {
     author: "David Trejo",
     domain: "DTrejo.com",
     authorAvatar: "images/dtrejo.jpg",
-    // authorAvatar: "images/lime-cat.jpg",
     backgroundImage: "images/background.jpeg",
   })
 }
