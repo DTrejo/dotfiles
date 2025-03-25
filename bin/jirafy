@@ -1,0 +1,113 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'json'
+require 'open3'
+require 'yaml'
+
+# future work use https://www.hammerspoon.org/go/ ?
+
+USAGE = %(
+What does `jirafy` do?
+jirafy embeds JIRA tickets in your markdown.
+
+Usage:
+  jirafy # pulls from your clipboard
+  pbpaste | jirafy
+  jirafy JIRA-0000
+  jirafy https://yourcompany.atlassian.net/browse/JIRA-0000
+
+Example output:
+  Your markdown with JIRA ticket embed [JIRA-0000 Ticket Title :in-progress:](https://yourcompany.atlassian.net/browse/JIRA-0000).
+)
+
+HELP = ['-h', '--help'].freeze
+DEBUG = ENV['DEBUG']
+
+def main
+  if run('which jira').empty?
+    puts %(Please install go-jira:
+      brew install go-jira
+      # Follow instructions:
+      # https://github.com/go-jira/jira#quickstart-api-token-and-keychain
+    )
+    exit 1
+  end
+  help = ARGV.find { |arg| HELP.include?(arg) }
+  if help
+    puts USAGE
+    return
+  end
+
+  # pick jira url
+  #
+
+  return jirafy
+end
+
+def endpoint
+  config_yml = File.expand_path('~/.jira.d/config.yml')
+  config = YAML.safe_load_file(config_yml, symbolize_names: true, permitted_classes: [String])
+  config.dig(:endpoint)
+end
+
+def browse_url(key)
+  "#{endpoint}/browse/#{key}"
+end
+
+def jirafy
+  input = collect_input
+
+  keys = input.split(' ').map { |arg| arg.match(/\b([A-Z]+-\d+)\b/i).to_s.upcase }.keep_if { |x| x }
+  return puts(input) if keys.empty? # nothing to do
+
+  debug("keys #{keys}")
+
+  # fix: this should output words that are not jira keys unchanged.
+  md = keys.map do |key|
+    issue = parse_issue(run("jira view -t json --expand=renderedFields #{key}"))
+    summary = issue.dig(:fields, :summary)
+    status = issue.dig(:fields, :status, :name)&.downcase&.tr(' ', '-')
+    status_tag = status ? ":#{status}:" : ''
+    "[#{key} #{summary} #{status_tag}](#{browse_url(key)})"
+  end.join("\n")
+  puts md
+end
+
+def collect_input
+  if ARGV.empty?
+    `pbpaste`
+  elsif ARGV.any?
+    ARGV.join(' ')
+  elsif STDIN.tty? && !STDIN.closed?
+    # not sure this will ever be reached
+    STDIN.read.strip
+  else
+    puts USAGE
+    exit 1
+  end
+end
+
+def parse_issue(output)
+  JSON.parse(output, symbolize_names: true)
+end
+
+def run(command, *args, log_error: false)
+  program, simple_args = command.split(' ', 2)
+  output, status = Open3.capture2(program, *simple_args.split(' '), *args)
+  out = output.strip
+  puts(out) if log_error && status != 0
+  out
+end
+
+def debug(*args)
+  return unless DEBUG
+
+  puts(*args)
+end
+
+# minitest tests
+# run tests only flag
+
+main
+
