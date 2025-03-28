@@ -32,7 +32,16 @@ on run argv
 
             # Type your message
             keystroke messageText
-            delay 0.5
+
+            # Add a space and delay if message contains emoji codes
+            if messageText contains ":" then
+                # Add a space to make any emoji codes turn into emoji
+                keystroke " "
+                # otherwise the message is sent before the emoji is rendered
+                delay 3
+            else
+                delay 0.5
+            end if
 
             # Send the message
             keystroke return
