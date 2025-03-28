@@ -1,0 +1,41 @@
+#!/usr/bin/osascript
+
+on run argv
+    if (count of argv) is not 2 then
+        display dialog "Usage: slack-dm \"Person's name\" \"Your message here\"" buttons {"OK"} default button "OK"
+        return
+    end if
+
+    set personName to item 1 of argv
+    set messageText to item 2 of argv
+
+    tell application "Slack"
+        # Activate Slack
+        activate
+
+        # Wait a moment for Slack to be ready
+        delay 1
+
+        # Open DM with specified person
+        tell application "System Events"
+            # Press Cmd + K to open quick switcher
+            keystroke "k" using command down
+            delay 0.5
+
+            # Type the name
+            keystroke "@" & personName
+            delay 1
+
+            # Press return to select the user
+            keystroke return
+            delay 0.5
+
+            # Type your message
+            keystroke messageText
+            delay 0.5
+
+            # Send the message
+            keystroke return
+        end tell
+    end tell
+end run
