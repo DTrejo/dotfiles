@@ -272,3 +272,5 @@ export BASH_SILENCE_DEPRECATION_WARNING=1
 eval "$(rbenv init -)"
 
 alias dr="docker-compose run --rm "
+
+alias slackletters='ruby -e "puts STDIN.read.strip.chars.map { |c| c.match?(/[[:alpha:]]/) ? \":alphabet-yellow-#{c.downcase}:\" : c }.join"'
