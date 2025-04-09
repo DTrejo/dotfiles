@@ -1,0 +1,26 @@
+{
+  "recommendations": [
+    "idleberg.applescript",
+    "jasonnutter.vscode-codeowners",
+    "bradlc.vscode-tailwindcss",
+    "ms-python.black-formatter",
+    "eamodio.gitlens",
+    "graphql.vscode-graphql",
+    "graphql.vscode-graphql-syntax",
+    "exiasr.hadolint",
+    "heybourn.headwind",
+    "wix.vscode-import-cost",
+    "ms-vsliveshare.vsliveshare",
+    "ms-vscode.makefile-tools",
+    "bierner.markdown-mermaid",
+    "cardinal90.multi-cursor-case-preserve",
+    "esbenp.prettier-vscode",
+    "mechatroner.rainbow-csv",
+    "misogi.ruby-rubocop",
+    "timonwong.shellcheck",
+    "vortizhe.simple-ruby-erb",
+    "austenc.tailwind-docs",
+    "sastan.twind-intellisense",
+    "redhat.vscode-yaml"
+  ]
+}
