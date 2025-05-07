@@ -1,5 +1,25 @@
 #!/usr/bin/osascript
 
+-- Future work: check the window title to see if we've on the right screen before
+-- proceeding to the next step.
+-- -- Activate Slack
+-- tell application "Slack" to activate
+-- delay 1 -- wait for Slack to come to the front
+
+-- -- Get window title
+-- tell application "System Events"
+-- 	tell process "Slack"
+-- 		if exists (window 1) then
+-- 			set windowTitle to name of window 1
+-- 		else
+-- 			set windowTitle to "No Slack window found"
+-- 		end if
+-- 	end tell
+-- end tell
+
+-- -- Print the window title
+-- return windowTitle
+
 on run argv
     if (count of argv) is not 2 then
         display dialog "Usage: slack-dm \"Person's name\" \"Your message here\"" buttons {"OK"} default button "OK"
