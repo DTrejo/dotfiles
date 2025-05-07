@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ruby -e 'puts(ARGV[0].trim.chars.map { |c| c.match?(/[[:alpha:]]/) ? ":alphabet-yellow-#{c}:" : c }.join)' "$(pbpaste)"
