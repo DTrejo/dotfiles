@@ -39,10 +39,15 @@ def main
     return
   end
 
-  # pick jira url
-  #
+  # TODO: pick jira url
 
-  return jirafy
+  md = jirafy
+  puts md
+  # Only copy to clipboard if we're running in a terminal
+  if STDOUT.tty?
+    `echo "#{md}" | pbcopy`
+    puts "\n\n✅ 📋 Copied to clipboard"
+  end
 end
 
 def endpoint
@@ -58,20 +63,21 @@ end
 def jirafy
   input = collect_input
 
-  keys = input.split(' ').map { |arg| arg.match(/\b([A-Z]+-\d+)\b/i).to_s.upcase }.keep_if { |x| x }
-  return puts(input) if keys.empty? # nothing to do
-
-  debug("keys #{keys}")
-
-  # fix: this should output words that are not jira keys unchanged.
-  md = keys.map do |key|
+  # Create a mapping of JIRA keys to their markdown replacements
+  jira_refs = {}
+  input.scan(/\b[A-Z]+-\d+\b/i).uniq.each do |key|
+    key = key.upcase
     issue = parse_issue(run("jira view -t json --expand=renderedFields #{key}"))
     summary = issue.dig(:fields, :summary)
     status = issue.dig(:fields, :status, :name)&.downcase&.tr(' ', '-')
     status_tag = status ? ":#{status}:" : ''
-    "[#{key} #{summary} #{status_tag}](#{browse_url(key)})"
-  end.join("\n")
-  puts md
+    jira_refs[key] = "[#{key} #{summary} #{status_tag}](#{browse_url(key)})"
+  end
+
+  debug("jira_refs #{jira_refs}")
+
+  # Replace each JIRA key with its markdown while preserving other text
+  input.gsub(/\b[A-Z]+-\d+\b/i) { |match| jira_refs[match.upcase] }
 end
 
 def collect_input
