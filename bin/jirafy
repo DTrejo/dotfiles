@@ -63,21 +63,22 @@ end
 def jirafy
   input = collect_input
 
-  # Create a mapping of JIRA keys to their markdown replacements
-  jira_refs = {}
-  input.scan(/\b[A-Z]+-\d+\b/i).uniq.each do |key|
-    key = key.upcase
+  # Match e.g. JIRA-0000 or https://yourcompany.atlassian.net/browse/JIRA-0000
+  regex = %r{(?:https?://\w+\.atlassian\.net/browse/)?(\w+-\d+)}i
+
+  input.gsub(regex) do |original_string|
+    key = $1.upcase  # $1 refers to the first capture group
+    debug("match #{original_string} -> #{key}")
+
     issue = parse_issue(run("jira view -t json --expand=renderedFields #{key}"))
     summary = issue.dig(:fields, :summary)
     status = issue.dig(:fields, :status, :name)&.downcase&.tr(' ', '-')
     status_tag = status ? ":#{status}:" : ''
-    jira_refs[key] = "[#{key} #{summary} #{status_tag}](#{browse_url(key)})"
+    md = "[#{key} #{summary} #{status_tag}](#{browse_url(key)})"
+
+    debug("\t#{md}")
+    md
   end
-
-  debug("jira_refs #{jira_refs}")
-
-  # Replace each JIRA key with its markdown while preserving other text
-  input.gsub(/\b[A-Z]+-\d+\b/i) { |match| jira_refs[match.upcase] }
 end
 
 def collect_input
@@ -98,11 +99,15 @@ def parse_issue(output)
   JSON.parse(output, symbolize_names: true)
 end
 
+$run_cache = {}
 def run(command, *args, log_error: false)
   program, simple_args = command.split(' ', 2)
+  key = [program, simple_args, *args].join(' ')
+  return $run_cache[key] if $run_cache[key]
   output, status = Open3.capture2(program, *simple_args.split(' '), *args)
   out = output.strip
   puts(out) if log_error && status != 0
+  $run_cache[key] = out
   out
 end
 
@@ -112,8 +117,10 @@ def debug(*args)
   puts(*args)
 end
 
-# minitest tests
-# run tests only flag
+# 1. add run tests only flag to the tool, -t or --tests
+# 2. minitest tests
+#   - can handle multiple jira keys
+#   - can handle multiple jira keys and other text
+#   - can handle multiple jira URLs and doesn't output the full URL in the markdown
 
 main
-
