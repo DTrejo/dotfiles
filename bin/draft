@@ -22,6 +22,7 @@ How does it work?
 * creates an empty commit with the JIRA title in it
 * pushes the branch to github
 * opens a draft PR
+* transitions the JIRA ticket to "In Progress", if possible
 
 Feedback? Message David Trejo.
 )
@@ -127,6 +128,9 @@ def create_draft
 
   view = run("gh pr view #{branch_name} --web")
   debug(view)
+
+  transition_to_in_progress = run("jira transition --no-edit #{key} -t 'In Progress'")
+  debug(transition_to_in_progress)
 end
 
 def parse_issue(output)

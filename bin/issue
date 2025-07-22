@@ -28,6 +28,7 @@ How does it work?
 * creates JIRA issue with the same title and description
 * edits PR to add the JIRA issue key to the title and description
 * opens your browser to the new JIRA issue
+* transitions the JIRA ticket to "In Progress", if possible
 
 Settings
   Stop the browser from opening after creation:
@@ -125,6 +126,10 @@ You'll want to use your team's JIRA project shortcode.
     log_error: true
   )
   debug(pr_edit)
+
+  transition_to_in_progress = run("jira transition --no-edit #{issue_key} -t 'In Progress'")
+  debug(transition_to_in_progress)
+
   puts issue
 end
 
