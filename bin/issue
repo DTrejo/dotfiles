@@ -127,7 +127,7 @@ You'll want to use your team's JIRA project shortcode.
   )
   debug(pr_edit)
 
-  transition_to_in_progress = run("jira transition --no-edit #{issue_key} -t 'In Progress'")
+  transition_to_in_progress = run("jira transition --noedit 'In Progress' #{issue_key}")
   debug(transition_to_in_progress)
 
   puts issue

@@ -129,7 +129,7 @@ def create_draft
   view = run("gh pr view #{branch_name} --web")
   debug(view)
 
-  transition_to_in_progress = run("jira transition --no-edit #{key} -t 'In Progress'")
+  transition_to_in_progress = run("jira transition --noedit 'In Progress' #{key}")
   debug(transition_to_in_progress)
 end
 
