@@ -117,7 +117,6 @@ You'll want to use your team's JIRA project shortcode.
     '-o', "assignee=#{email}",
     log_error: true
   )
-  # TODO: transition the issue to "In Progress" if possible, ignore errors. can we do it in one call?
   issue_key = issue.match(/\b([A-Z]+-\d+)\b/i).to_s.upcase
   pr_edit = run(
     'gh pr edit',
