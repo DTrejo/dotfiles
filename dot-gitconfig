@@ -4,8 +4,9 @@
 	safecrlf = true
 	whitespace=fix,-indent-with-non-tab,trailing-space,cr-at-eol
 	editor = cursor --wait
-	fsmonitor = true
-	untrackedCache = true
+	# may be causing problems with git in docker.
+	# fsmonitor = true
+	# untrackedCache = true
 [apply]
 	whitespace = fix
 [color]

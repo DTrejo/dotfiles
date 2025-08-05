@@ -177,6 +177,7 @@ alias gbr='amp -p " ? (?:remotes\\/)?(?:origin\\/)?(.*)$" git branch --sort=-com
 alias l='CLICOLOR_FORCE=1 amp -p "(.*)" ls -1'
 alias find='amp -p "(.*)" find'
 alias gdiffstat='amp -p " ((?:\\/[\\w\\.\\-]+)+)" git diff --stat'
+alias gdmno='amp -p "(.*)" git diff main... --name-only'
 
 # give me variable expansion!
 alias subl='amp cursor'
