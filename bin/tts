@@ -1,0 +1,118 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'json'
+require 'open3'
+require 'http'
+
+USAGE = %(
+What does `tts` do?
+tts converts text to speech using OpenAI's API.
+
+Usage:
+  tts # pulls from your clipboard
+  echo "hello world" | tts
+  tts "some text to speak"
+
+Output:
+  Saves audio file to ~/Downloads with date_short-summary.mp3 format and opens it.
+)
+
+HELP = ['-h', '--help'].freeze
+DEBUG = ENV['DEBUG']
+
+def main
+  unless ENV['OPENAI_API_KEY']
+    puts "Please set OPENAI_API_KEY environment variable"
+    exit 1
+  end
+
+  help = ARGV.find { |arg| HELP.include?(arg) }
+  if help
+    puts USAGE
+    return
+  end
+
+  text = collect_input
+  if text.strip.empty?
+    puts "No text to convert to speech"
+    exit 1
+  end
+
+  audio_file = text_to_speech(text)
+  puts "🔊 Audio saved: #{audio_file}"
+
+  # Open the audio file with QuickTime Player
+  `open -a "QuickTime Player" "#{audio_file}"`
+end
+
+def collect_input
+  if ARGV.empty?
+    `pbpaste`
+  elsif ARGV.any?
+    ARGV.join(' ')
+  elsif !STDIN.tty?
+    STDIN.read.strip
+  else
+    puts USAGE
+    exit 1
+  end
+end
+
+def text_to_speech(text)
+  # Generate short summary for filename
+  summary = generate_summary(text)
+  date = Time.now.strftime('%Y-%m-%d')
+
+  # Handle filename conflicts with incrementing numbers
+  base_filename = "#{date}_#{summary}"
+  filename = "#{base_filename}.mp3"
+  filepath = File.expand_path("~/Downloads/#{filename}")
+
+  counter = 1
+  while File.exist?(filepath)
+    filename = "#{base_filename}-#{counter}.mp3"
+    filepath = File.expand_path("~/Downloads/#{filename}")
+    counter += 1
+  end
+
+  debug("Converting text to speech: #{text[0..50]}...")
+  debug("Saving to: #{filepath}")
+
+  # Call OpenAI TTS API
+  response = HTTP.auth("Bearer #{ENV['OPENAI_API_KEY']}")
+                 .post('https://api.openai.com/v1/audio/speech',
+                       json: {
+                         model: 'tts-1',
+                         input: text,
+                         voice: 'alloy'
+                       })
+
+  unless response.status.success?
+    puts "Error from OpenAI API: #{response.status} #{response.body}"
+    exit 1
+  end
+
+  # Write audio data to file
+  File.open(filepath, 'wb') do |file|
+    file.write(response.body)
+  end
+
+  filepath
+end
+
+def generate_summary(text)
+  # Simple summary: take first few words and clean them up
+  words = text.strip.split(/\s+/)[0..3]
+  summary = words.join('-')
+  # Clean filename - remove special characters
+  summary.gsub(/[^a-zA-Z0-9_-]/, '').downcase[0..20]
+end
+
+def debug(*args)
+  return unless DEBUG
+
+  puts(*args)
+end
+
+main
