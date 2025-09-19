@@ -2,7 +2,6 @@
 # frozen_string_literal: true
 
 require 'json'
-require 'open3'
 require 'http'
 
 USAGE = %(
@@ -22,6 +21,7 @@ HELP = ['-h', '--help'].freeze
 DEBUG = ENV['DEBUG']
 
 def main
+
   unless ENV['OPENAI_API_KEY']
     puts "Please set OPENAI_API_KEY environment variable"
     exit 1
@@ -41,9 +41,17 @@ def main
 
   audio_file = text_to_speech(text)
   puts "🔊 Audio saved: #{audio_file}"
+  puts "Playing in QuickTime Player with AppleScript..."
 
-  # Open the audio file with QuickTime Player
-  `open -a "QuickTime Player" "#{audio_file}"`
+  # Play the audio file with QuickTime Player via AppleScript
+  applescript = <<~SCRIPT
+    tell application "QuickTime Player"
+      activate
+      open POSIX file "#{audio_file}"
+      play document 1
+    end tell
+  SCRIPT
+  system("osascript", "-e", applescript)
 end
 
 def collect_input
