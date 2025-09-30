@@ -14,3 +14,4 @@
 - NEVER use `git add .`, when committing ALWAYS commit specific files, e.g. `git add file1.js file2.js`.
 - Prefer to use `Makefile` commands or `npm run scripts`.
 - When using `gh pr create`, always use `gh pr create -w` to open the web browser afterwards.
+- Instead of `rm -rf`, use `rm` which is aliased to support moving directories and files to Trash.
