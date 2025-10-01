@@ -197,7 +197,7 @@ alias gup='amp git up' # my rebase helper script, see dtrejo/dotfiles/bin/git-up
 alias gf='git fetch'
 alias npx='amp npx'
 alias x='amp npx'
-alias cat='amp cat'
+alias cata='amp cat' # messes up claude's commit messages
 alias less='amp less'
 
 alias gc='git commit'
