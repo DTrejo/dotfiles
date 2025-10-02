@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+
+// Based on https://gist.github.com/hyperb1iss/c2029f9c3393f8c1197267873037632c
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const file = path.join(os.homedir(), '.claude.json');
+const before = fs.statSync(file).size;
+
+const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+
+if (data.projects) {
+  for (const id in data.projects) {
+    if (data.projects[id]?.history) {
+      data.projects[id].history = [];
+    }
+  }
+}
+
+fs.writeFileSync(file, JSON.stringify(data, null, 2));
+
+const after = fs.statSync(file).size;
+console.log(`✨ ~/.claude.json: ${(before/1024/1024).toFixed(2)} MB -> ${(after/1024).toFixed(2)} KB`);
