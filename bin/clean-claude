@@ -22,4 +22,4 @@ if (data.projects) {
 fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
 const after = fs.statSync(file).size;
-console.log(`✨ ~/.claude.json: ${(before/1024/1024).toFixed(2)} MB -> ${(after/1024).toFixed(2)} KB`);
+console.log(`✨ ~/.claude.json: ${(before/1024/1024).toFixed(2)} MB → ${(after/1024).toFixed(2)} KB`);
