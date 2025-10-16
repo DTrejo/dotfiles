@@ -13,13 +13,13 @@ model_name=$(get_model_name)
 current_dir=$(get_current_dir)
 cost=$(get_cost)
 
-# Parse prettier model name (e.g., "sonnet-4-5" -> "sonnet 4.5")
-if [[ "$model_name" =~ sonnet-([0-9])-([0-9]) ]]; then
-    model_display="sonnet ${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
-elif [[ "$model_name" =~ opus ]]; then
-    model_display="opus"
-elif [[ "$model_name" =~ haiku ]]; then
-    model_display="haiku"
+# Parse model name (handles formats like "Sonnet 4.5", "sonnet-4-5", etc.)
+if [[ "$model_name" =~ [Ss]onnet ]]; then
+    model_display=$(echo "$model_name" | tr '[:upper:]' '[:lower:]')
+elif [[ "$model_name" =~ [Oo]pus ]]; then
+    model_display=$(echo "$model_name" | tr '[:upper:]' '[:lower:]')
+elif [[ "$model_name" =~ [Hh]aiku ]]; then
+    model_display=$(echo "$model_name" | tr '[:upper:]' '[:lower:]')
 else
     model_display="${model_name,,}"
 fi
