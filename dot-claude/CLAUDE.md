@@ -14,3 +14,4 @@
 - If running commands, prefer to use `Makefile` commands or `npm run scripts`.
 - If creating a PR, use `gh pr create -d -w` to open the web browser afterwards and in draft mode by default.
 - If deleting a file, instead of `rm -rf`, use `rm` which moves files or directories to Trash
+- If committing, NEVER NEVER NEVER disable signature verification. if committing fails or times out, just pause and ask me to sign.
