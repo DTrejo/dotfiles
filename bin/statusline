@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+
+require 'json'
+require 'shellwords'
+
+# Read JSON input from stdin
+input = JSON.parse($stdin.read)
+
+# Extract data
+model_name = input.dig('model', 'display_name')
+current_dir = input.dig('workspace', 'current_dir')
+cost = input.dig('cost', 'total_cost_usd')
+
+# Parse model name (handles various formats)
+# e.g., "us.anthropic.claude-sonnet-4-5-20250929-v1:0" -> "sonnet 4.5"
+# e.g., "Sonnet 4.5" -> "sonnet 4.5"
+if model_name =~ /claude-(\w+)-(\d+)-(\d+)/
+  # Extract from full model ID format
+  family = $1  # sonnet, opus, haiku
+  major = $2   # 4
+  minor = $3   # 5
+  model_display = "#{family} #{major}.#{minor}"
+else
+  # Already in friendly format, just lowercase it
+  model_display = model_name.downcase
+end
+
+# Convert to relative path from home (like %~ in zsh)
+relative_dir = current_dir.sub(/^#{ENV['HOME']}/, '~')
+
+# Get git branch
+git_branch = ''
+if system("git -C #{current_dir.shellescape} rev-parse --git-dir > /dev/null 2>&1")
+  git_branch = `git -C #{current_dir.shellescape} --no-optional-locks branch --show-current 2>/dev/null`.strip
+end
+
+# Build status line matching your prompt style
+# Reset color at the start for a clean baseline
+status = "\033[0m"
+
+# Model name with cost
+if cost && cost != 0
+  # Round to whole dollars
+  cost_rounded = cost.round
+  model_display = "#{model_display} \033[32m$#{cost_rounded}\033[0m"
+end
+status += "\033[36m#{model_display}\033[0m"
+
+# Relative path
+status += " #{relative_dir}"
+
+# Yellow git branch in parens (like your prompt)
+if !git_branch.empty?
+  status += "\033[33m(#{git_branch})\033[0m"
+end
+
+# AI emoji separator - options: 🤖 ✨ 🧠 ⚡ 🔮
+status += " 🤖"
+
+puts status
