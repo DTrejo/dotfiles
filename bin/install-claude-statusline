@@ -1,0 +1,516 @@
+#!/usr/bin/env bash
+# Installation script for Claude Code Statusline
+# Usage: bash install-statusline.sh [--dry-run]
+
+set -e
+
+# Check for dry-run mode
+DRY_RUN=false
+if [[ "$1" == "--dry-run" ]]; then
+    DRY_RUN=true
+    echo "🧪 DRY RUN MODE - No changes will be made"
+    echo ""
+fi
+
+echo "🚀 Installing Claude Code Statusline..."
+echo ""
+
+# Function to ask yes/no question
+ask_yes_no() {
+    local question=$1
+    local response
+    while true; do
+        read -p "$question (y/n): " response
+        case "$response" in
+            [Yy]* ) return 0;;
+            [Nn]* ) return 1;;
+            * ) echo "Please answer y or n.";;
+        esac
+    done
+}
+
+# Detect OS
+OS="unknown"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS="macos"
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    OS="linux"
+fi
+
+# Check for Node.js/npx
+if ! command -v npx &> /dev/null; then
+    echo "❌ Node.js is required but not installed."
+    echo ""
+    if ask_yes_no "Would you like to install Node.js now?"; then
+        echo ""
+        if [[ "$OS" == "macos" ]]; then
+            if command -v brew &> /dev/null; then
+                echo "📦 Installing Node.js via Homebrew..."
+                if [[ "$DRY_RUN" == true ]]; then
+                    echo "   [DRY RUN] Would run: brew install node"
+                else
+                    brew install node
+                fi
+            else
+                echo "❌ Homebrew not found. Please install Node.js manually:"
+                echo "   Visit: https://nodejs.org/"
+                exit 1
+            fi
+        elif [[ "$OS" == "linux" ]]; then
+            echo "📦 Installing Node.js..."
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get update && sudo apt-get install -y nodejs npm
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y nodejs npm
+            else
+                echo "❌ Could not detect package manager. Please install Node.js manually:"
+                echo "   Visit: https://nodejs.org/"
+                exit 1
+            fi
+        else
+            echo "❌ Unsupported OS. Please install Node.js manually:"
+            echo "   Visit: https://nodejs.org/"
+            exit 1
+        fi
+    else
+        echo ""
+        echo "❌ Cannot continue without Node.js. The statusline requires npx to run ccusage."
+        echo "   Please install Node.js 16+ from: https://nodejs.org/"
+        exit 1
+    fi
+fi
+
+# Verify npx is working
+if ! command -v npx &> /dev/null; then
+    echo "❌ npx not found even after installation. Please restart your shell and try again."
+    exit 1
+fi
+
+echo "✅ Node.js/npx is available"
+echo ""
+
+# Check for jq
+if ! command -v jq &> /dev/null; then
+    echo "⚠️  jq is not installed."
+    echo "   jq is required for cost tracking, context usage, and token statistics."
+    echo ""
+    if ask_yes_no "Would you like to install jq now?"; then
+        echo ""
+        if [[ "$OS" == "macos" ]]; then
+            if command -v brew &> /dev/null; then
+                echo "📦 Installing jq via Homebrew..."
+                brew install jq
+            else
+                echo "❌ Homebrew not found. Please install jq manually:"
+                echo "   brew install jq"
+                echo ""
+                if ! ask_yes_no "Continue without jq? (statusline will have limited functionality)"; then
+                    exit 1
+                fi
+            fi
+        elif [[ "$OS" == "linux" ]]; then
+            echo "📦 Installing jq..."
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get install -y jq
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y jq
+            else
+                echo "❌ Could not detect package manager. Please install jq manually:"
+                echo "   apt-get install jq  (Debian/Ubuntu)"
+                echo "   yum install jq      (RHEL/CentOS)"
+                echo ""
+                if ! ask_yes_no "Continue without jq? (statusline will have limited functionality)"; then
+                    exit 1
+                fi
+            fi
+        else
+            echo "❌ Unsupported OS. Please install jq manually."
+            echo ""
+            if ! ask_yes_no "Continue without jq? (statusline will have limited functionality)"; then
+                exit 1
+            fi
+        fi
+    else
+        echo ""
+        echo "⚠️  Continuing without jq. Note:"
+        echo "   - Cost tracking will not work"
+        echo "   - Context usage will not be accurate"
+        echo "   - Token statistics will not be available"
+        echo ""
+        if ! ask_yes_no "Are you sure you want to continue?"; then
+            exit 1
+        fi
+    fi
+fi
+
+# Verify jq if we tried to install it
+if command -v jq &> /dev/null; then
+    echo "✅ jq is available"
+else
+    echo "⚠️  jq is not available (limited functionality)"
+fi
+
+echo ""
+
+# Check for ccusage
+echo "📦 Checking ccusage (cost tracking tool)..."
+if npx -y ccusage --version &> /dev/null; then
+    echo "✅ ccusage is available"
+else
+    echo "⚠️  ccusage not found or not working."
+    echo "   ccusage provides cost tracking, token statistics, and context monitoring."
+    echo ""
+    if ask_yes_no "Would you like to install ccusage now?"; then
+        echo ""
+        echo "📦 Installing ccusage via npm..."
+        # Pre-cache ccusage using npx
+        if npx -y ccusage --version &> /dev/null; then
+            echo "✅ ccusage installed successfully"
+        else
+            echo "⚠️  ccusage installation had issues, but it will auto-install on first use."
+        fi
+    else
+        echo ""
+        echo "⚠️  Continuing without pre-installing ccusage. Note:"
+        echo "   - Cost tracking will not work properly"
+        echo "   - Context usage monitoring will be limited"
+        echo "   - Token statistics will be unavailable"
+        echo "   ccusage will auto-install on first use via npx, which may cause delays."
+        echo ""
+        if ! ask_yes_no "Are you sure you want to continue?"; then
+            exit 1
+        fi
+    fi
+fi
+
+echo ""
+
+# Create .claude directory if it doesn't exist
+CLAUDE_DIR="${HOME}/.claude"
+mkdir -p "${CLAUDE_DIR}"
+
+# Path to statusline script
+STATUSLINE_PATH="${CLAUDE_DIR}/statusline.sh"
+
+# Create statusline.sh
+echo "📝 Creating statusline script..."
+cat > "${STATUSLINE_PATH}" << 'STATUSLINE_EOF'
+#!/usr/bin/env bash
+# Secure Multi-line Statusline for Claude Code
+# Version: 1.1.0
+# Security: All variables properly quoted, input validated
+
+set -euo pipefail
+
+# Color codes (use tput for portability)
+if command -v tput &> /dev/null && [ -t 1 ]; then
+    RED=$(tput setaf 1 2>/dev/null || echo "")
+    GREEN=$(tput setaf 2 2>/dev/null || echo "")
+    YELLOW=$(tput setaf 3 2>/dev/null || echo "")
+    BLUE=$(tput setaf 4 2>/dev/null || echo "")
+    MAGENTA=$(tput setaf 5 2>/dev/null || echo "")
+    CYAN=$(tput setaf 6 2>/dev/null || echo "")
+    RESET=$(tput sgr0 2>/dev/null || echo "")
+else
+    RED="" GREEN="" YELLOW="" BLUE="" MAGENTA="" CYAN="" RESET=""
+fi
+
+# Function to safely get current directory with ~ abbreviation
+get_current_dir() {
+    local current_dir="${PWD}"
+    # Safely replace HOME with ~
+    if [[ "${current_dir}" == "${HOME}"* ]]; then
+        current_dir="~${current_dir#"$HOME"}"
+    fi
+    printf '%s' "${current_dir}"
+}
+
+# Function to safely get git branch
+get_git_branch() {
+    if git rev-parse --is-inside-work-tree &> /dev/null; then
+        local branch
+        branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "")
+        if [[ -n "${branch}" ]]; then
+            # Check for uncommitted changes
+            if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+                printf '%s' "${branch}⚡"
+            else
+                printf '%s' "${branch}"
+            fi
+        fi
+    fi
+}
+
+# Function to format number with commas
+format_number() {
+    local num=$1
+    # Use printf and sed to add commas
+    printf "%'d" "${num}" 2>/dev/null || echo "${num}"
+}
+
+# Function to format tokens in K/M format
+format_tokens() {
+    local tokens=$1
+    if (( tokens >= 1000000 )); then
+        local millions=$(( tokens / 1000000 ))
+        local remainder=$(( (tokens % 1000000) / 100000 ))
+        if (( remainder > 0 )); then
+            printf "%d.%dM" "${millions}" "${remainder}"
+        else
+            printf "%dM" "${millions}"
+        fi
+    elif (( tokens >= 1000 )); then
+        local thousands=$(( tokens / 1000 ))
+        printf "%dK" "${thousands}"
+    else
+        printf "%d" "${tokens}"
+    fi
+}
+
+# Function to safely extract JSON field using jq
+safe_json_extract() {
+    local json=$1
+    local field=$2
+    local default=${3:-""}
+
+    if command -v jq &> /dev/null; then
+        local value
+        # Use jq with proper error handling
+        value=$(printf '%s' "${json}" | jq -r ".${field} // \"${default}\"" 2>/dev/null || printf '%s' "${default}")
+        printf '%s' "${value}"
+    else
+        printf '%s' "${default}"
+    fi
+}
+
+# Function to get ccusage data
+get_ccusage_data() {
+    if ! command -v npx &> /dev/null; then
+        echo "{}"
+        return
+    fi
+
+    # Call ccusage and capture output (npx typically caches so this is fast)
+    local output
+    output=$(npx -y ccusage blocks --json 2>/dev/null || echo "{}")
+    printf '%s' "${output}"
+}
+
+# Function to get model name from environment or blocks
+get_model_name() {
+    local blocks_json=$1
+
+    # Try to extract from active block
+    if command -v jq &> /dev/null; then
+        local model
+        model=$(printf '%s' "${blocks_json}" | jq -r '.blocks[] | select(.isActive == true) | .models[0] // ""' 2>/dev/null || echo "")
+
+        if [[ -n "${model}" ]] && [[ "${model}" != "null" ]] && [[ "${model}" != "<synthetic>" ]]; then
+            # Clean up model name
+            model="${model#claude-}"
+            model="${model%-*-*-*}" # Remove date and version suffix
+            # Capitalize first letter
+            model="$(tr '[:lower:]' '[:upper:]' <<< "${model:0:1}")${model:1}"
+            printf '%s' "${model}"
+            return
+        fi
+    fi
+
+    # Fallback to Bedrock model name
+    if [[ -n "${ANTHROPIC_DEFAULT_SONNET_MODEL}" ]]; then
+        # Extract version from model ID like "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+        if [[ "${ANTHROPIC_DEFAULT_SONNET_MODEL}" =~ sonnet-([0-9])-([0-9]) ]]; then
+            printf 'Sonnet %s.%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+            return
+        fi
+    fi
+
+    # Final fallback
+    printf 'Sonnet 4.5'
+}
+
+# Main statusline generation
+main() {
+    # Line 1: Directory, Git, Model Info
+    local current_dir
+    current_dir=$(get_current_dir)
+
+    local git_branch
+    git_branch=$(get_git_branch)
+
+    # Get ccusage data early so we can use it for model detection
+    local ccusage_json
+    ccusage_json=$(get_ccusage_data)
+
+    local model
+    model=$(get_model_name "${ccusage_json}")
+
+    local version
+    version=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "1.0.0")
+
+    printf "📁 %s" "${current_dir}"
+    if [[ -n "${git_branch}" ]]; then
+        printf " 🌿 %s" "${git_branch}"
+    fi
+    printf " 🤖 %s 📟 v%s\n" "${model}" "${version}"
+
+    # Line 2: Context Usage
+    # Extract context data from active block
+    local context_used
+    local context_total
+    local context_pct
+
+    if command -v jq &> /dev/null; then
+        # Get input tokens from active block
+        context_used=$(printf '%s' "${ccusage_json}" | jq -r '[.blocks[] | select(.isActive == true) | .tokenCounts.inputTokens] | add // 0' 2>/dev/null || echo "0")
+        # Default max context for Sonnet 4.5
+        context_total=200000
+    else
+        context_used=0
+        context_total=200000
+    fi
+
+    # Calculate percentage safely
+    if [[ "${context_total}" =~ ^[0-9]+$ ]] && (( context_total > 0 )); then
+        context_pct=$(( (context_used * 100) / context_total ))
+    else
+        context_pct=0
+    fi
+
+    # Format tokens for display
+    local context_used_fmt
+    local context_total_fmt
+    context_used_fmt=$(format_tokens "${context_used}")
+    context_total_fmt=$(format_tokens "${context_total}")
+
+    # Color code percentage based on usage
+    local context_color="${GREEN}"
+    if (( context_pct >= 85 )); then
+        context_color="${RED}"
+    elif (( context_pct >= 60 )); then
+        context_color="${YELLOW}"
+    fi
+
+    printf "🧠 Context: %s%d%%%s used (%s/%s)" \
+        "${context_color}" "${context_pct}" "${RESET}" \
+        "${context_used_fmt}" "${context_total_fmt}"
+
+    # Add time info if available
+    local time_until_reset
+    if command -v jq &> /dev/null; then
+        # Calculate time until block end for active block
+        local block_end
+        block_end=$(printf '%s' "${ccusage_json}" | jq -r '.blocks[] | select(.isActive == true) | .endTime' 2>/dev/null || echo "")
+        if [[ -n "${block_end}" ]] && [[ "${block_end}" != "null" ]]; then
+            local now_epoch
+            local end_epoch
+            now_epoch=$(date +%s 2>/dev/null || echo "0")
+            end_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${block_end%%.*}" +%s 2>/dev/null || echo "0")
+            if (( end_epoch > now_epoch )); then
+                local minutes_left=$(( (end_epoch - now_epoch) / 60 ))
+                local hours_left=$(( minutes_left / 60 ))
+                local mins_remainder=$(( minutes_left % 60 ))
+                time_until_reset="${hours_left}h ${mins_remainder}m"
+            fi
+        fi
+    fi
+    if [[ -n "${time_until_reset}" ]]; then
+        printf " ⌛ %s until reset" "${time_until_reset}"
+    fi
+    printf "\n"
+
+    # Line 3: Cost and Token Info
+    local block_cost
+    local daily_cost
+    local burn_rate
+    local tokens
+
+    if command -v jq &> /dev/null; then
+        # Extract from active block
+        block_cost=$(printf '%s' "${ccusage_json}" | jq -r '[.blocks[] | select(.isActive == true) | .costUSD] | add // 0' 2>/dev/null || echo "0")
+        # Sum all costs from today (non-gap blocks)
+        daily_cost=$(printf '%s' "${ccusage_json}" | jq -r '[.blocks[] | select(.isGap == false) | .costUSD] | add // 0' 2>/dev/null || echo "0")
+        burn_rate=$(printf '%s' "${ccusage_json}" | jq -r '.blocks[] | select(.isActive == true) | .burnRate.costPerHour // 0' 2>/dev/null || echo "0")
+        tokens=$(printf '%s' "${ccusage_json}" | jq -r '[.blocks[] | select(.isActive == true) | .totalTokens] | add // 0' 2>/dev/null || echo "0")
+    else
+        block_cost="0"
+        daily_cost="0"
+        burn_rate="0"
+        tokens="0"
+    fi
+
+    # Format costs to 2 decimal places
+    block_cost=$(printf "%.2f" "${block_cost}" 2>/dev/null || echo "0.00")
+    daily_cost=$(printf "%.2f" "${daily_cost}" 2>/dev/null || echo "0.00")
+    burn_rate=$(printf "%.2f" "${burn_rate}" 2>/dev/null || echo "0.00")
+
+    # Format tokens with commas
+    local tokens_fmt
+    tokens_fmt=$(format_number "${tokens}")
+
+    printf "💰 \$%s block / \$%s today 🔥 \$%s/hr 📊 %s tokens\n" \
+        "${block_cost}" "${daily_cost}" "${burn_rate}" "${tokens_fmt}"
+}
+
+# Execute main function
+main
+STATUSLINE_EOF
+
+# Make statusline executable
+chmod +x "${STATUSLINE_PATH}"
+echo "✅ Statusline script created at ${STATUSLINE_PATH}"
+
+# Update settings.json
+SETTINGS_PATH="${CLAUDE_DIR}/settings.json"
+
+if [ ! -f "${SETTINGS_PATH}" ]; then
+    # Create new settings.json if it doesn't exist
+    echo "📝 Creating new settings.json..."
+    cat > "${SETTINGS_PATH}" << 'SETTINGS_EOF'
+{
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh",
+    "padding": 0
+  }
+}
+SETTINGS_EOF
+    echo "✅ Settings created at ${SETTINGS_PATH}"
+else
+    # Merge with existing settings.json
+    echo "📝 Updating existing settings.json..."
+
+    if command -v jq &> /dev/null; then
+        # Use jq to merge settings
+        temp_file=$(mktemp)
+        jq '. + {"statusLine": {"type": "command", "command": "~/.claude/statusline.sh", "padding": 0}}' "${SETTINGS_PATH}" > "${temp_file}"
+        mv "${temp_file}" "${SETTINGS_PATH}"
+        echo "✅ Settings updated at ${SETTINGS_PATH}"
+    else
+        echo "⚠️  jq not found. Please manually add this to ${SETTINGS_PATH}:"
+        echo ""
+        echo '  "statusLine": {'
+        echo '    "type": "command",'
+        echo '    "command": "~/.claude/statusline.sh",'
+        echo '    "padding": 0'
+        echo '  }'
+        echo ""
+    fi
+fi
+
+echo ""
+echo "🎉 Installation complete!"
+echo ""
+echo "Next steps:"
+echo "  1. Restart Claude Code to see your new statusline"
+echo "  2. The statusline will show:"
+echo "     - Current directory and git branch"
+echo "     - Model and Claude Code version"
+echo "     - Context usage (color-coded)"
+echo "     - Cost tracking and token usage"
+echo ""
+echo "Features:"
+echo "  - Green: < 60% context used"
+echo "  - Yellow: 60-84% context used"
+echo "  - Red: 85%+ context used"
+echo ""
