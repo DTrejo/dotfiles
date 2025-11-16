@@ -73,7 +73,6 @@ def jirafy
 
   input.gsub(regex) do |original_string|
     key = $1.upcase  # $1 refers to the first capture group
-    abort("Invalid JIRA key format: '#{key}'") if !key.match?(JIRA_KEY_REGEX)
     debug("match #{original_string} -> #{key}")
 
     issue = parse_issue(run("jira view -t json --expand=renderedFields #{key}"))
