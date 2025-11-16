@@ -31,6 +31,7 @@ Feedback? Message David Trejo.
 )
 HELP = ['-h', '--help'].freeze
 DEBUG = ENV['DEBUG']
+JIRA_KEY_REGEX = /\b([A-Z]+-\d+)\b/i.freeze
 
 def main
   if run('which jira').empty?
@@ -63,12 +64,8 @@ def main
 end
 
 def create_draft
-  key = ARGV.map { |arg| arg.match(/\b([A-Z]+-\d+)\b/i).to_s.upcase }.keep_if { |x| x }.first
-
-  unless key
-    puts "Sorry, could not find a JIRA key in #{ARGV}"
-    exit 1
-  end
+  key = ARGV.map { |arg| arg.match(JIRA_KEY_REGEX).to_s.upcase }.keep_if { |x| x }.first
+  abort("Could not find JIRA key in #{ARGV}") if !key
   debug("key #{key}")
 
   current_branch = run('git branch --show-current')

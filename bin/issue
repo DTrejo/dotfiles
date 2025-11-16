@@ -44,6 +44,7 @@ Feedback? Message David Trejo.
 )
 HELP = ['-h', '--help'].freeze
 DEBUG = ENV['DEBUG']
+JIRA_KEY_REGEX = /\b([A-Z]+-\d+)\b/i.freeze
 
 def main
   if run('which jira').empty?
@@ -120,7 +121,8 @@ You'll want to use your team's JIRA project shortcode.
     '-o', "assignee=#{email}",
     log_error: true
   )
-  issue_key = issue.match(/\b([A-Z]+-\d+)\b/i).to_s.upcase
+  issue_key = issue.match(JIRA_KEY_REGEX).to_s.upcase
+  abort("Could not extract JIRA key from jira create output") if !issue_key || issue_key.empty?
   pr_edit = run(
     'gh pr edit',
     '--title', "#{issue_key} #{pr[:title]}",

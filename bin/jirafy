@@ -27,6 +27,7 @@ Example output:
 
 HELP = ['-h', '--help'].freeze
 DEBUG = ENV['DEBUG']
+JIRA_KEY_REGEX = /\b([A-Z]+-\d+)\b/i.freeze
 
 def main
   if run('which jira').empty?
@@ -68,10 +69,11 @@ def jirafy
   input = collect_input
 
   # Match e.g. JIRA-0000 or https://yourcompany.atlassian.net/browse/JIRA-0000
-  regex = %r{(?:https?://\w+\.atlassian\.net/browse/)?(\w+-\d+)}i
+  regex = %r{(?:https?://\w+\.atlassian\.net/browse/)?(#{JIRA_KEY_REGEX.source})}i
 
   input.gsub(regex) do |original_string|
     key = $1.upcase  # $1 refers to the first capture group
+    abort("Invalid JIRA key format: '#{key}'") if !key.match?(JIRA_KEY_REGEX)
     debug("match #{original_string} -> #{key}")
 
     issue = parse_issue(run("jira view -t json --expand=renderedFields #{key}"))
