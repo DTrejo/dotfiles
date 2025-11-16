@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+#
+# TODO: Migrate to use OptionParser instead of manual ARGV parsing
+# See: ~/repos/security-monocle/docs/cli-best-practices.md for best practices
 
 require 'json'
 require 'open3'

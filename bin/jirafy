@@ -1,5 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+#
+# TODO: Implement tests as noted in lines 120-124 below
+# See: ~/repos/security-monocle/docs/cli-best-practices.md for testing best practices
+# Reference: ~/repos/security-monocle/bin/circleci-output for comprehensive test example
 
 require 'json'
 require 'open3'

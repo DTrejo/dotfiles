@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+#
+# TODO: Migrate to use OptionParser instead of manual ARGV parsing
+# See: ~/repos/security-monocle/docs/cli-best-practices.md for best practices
 
 require 'json'
 require 'open3'
@@ -82,16 +85,16 @@ def create_draft
 
   issue = parse_issue(run("jira view -t json --expand=renderedFields #{key}"))
   summary = issue.dig(:fields, :summary)
-  description_html = issue.dig(:renderedFields, :description).gsub("\n", " ")
+  description_html = issue.dig(:renderedFields, :description).gsub("\n", ' ')
   debug(summary, description_html)
   description = nil
-  Tempfile.create("html") do |file|
+  Tempfile.create('html') do |file|
     file.write(description_html)
     file.flush
     description = run("pandoc --from=html --to=gfm-raw_html #{file.path}")
   end
   debug(summary, description)
-  description.gsub!(/([^\n ])\n([^\n ])/) { |_match| "#{$1} #{$2}" }
+  description.gsub!(/([^\n ])\n([^\n ])/) { |_match| "#{Regexp.last_match(1)} #{Regexp.last_match(2)}" }
   debug(summary, description)
 
   # TODO: consider removing stopwords first
@@ -111,11 +114,11 @@ def create_draft
   debug(push)
 
   [
-    ".github/pull_request_template.md", ".github/PULL_REQUEST_TEMPLATE.md"
+    '.github/pull_request_template.md', '.github/PULL_REQUEST_TEMPLATE.md'
   ].any? do |pr_template_path|
-    next if !File.exist?(pr_template_path)
+    next unless File.exist?(pr_template_path)
 
-    Tempfile.create("github_description") do |file|
+    Tempfile.create('github_description') do |file|
       pull_request_template = File.read(pr_template_path)
       file.write("#{description}\n\n---\n#{pull_request_template}")
       file.flush
