@@ -1,11 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
-#
-# TODO: Migrate to use OptionParser instead of manual ARGV parsing
-# See: ~/repos/security-monocle/docs/cli-best-practices.md for best practices
 
 require 'json'
 require 'open3'
+require 'optparse'
 require 'tempfile'
 
 USAGE = %(
@@ -29,9 +27,19 @@ How does it work?
 
 Feedback? Message David Trejo.
 )
-HELP = ['-h', '--help'].freeze
 DEBUG = ENV['DEBUG']
 JIRA_KEY_REGEX = /\b([A-Z]+-\d+)\b/i.freeze
+
+def parse_options
+  OptionParser.new do |opts|
+    opts.banner = "Usage: #{$0} JIRA_KEY"
+
+    opts.on("-h", "--help", "Show this help") do
+      puts USAGE
+      exit
+    end
+  end.parse!
+end
 
 def main
   if run('which jira').empty?
@@ -54,12 +62,8 @@ def main
     )
     exit 1
   end
-  help = ARGV.find { |arg| HELP.include?(arg) }
-  if help
-    puts USAGE
-    return
-  end
 
+  parse_options
   create_draft
 end
 
