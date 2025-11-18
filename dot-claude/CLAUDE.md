@@ -15,3 +15,5 @@
 - If creating a PR, use `gh pr create -d -w` to open the web browser afterwards and in draft mode by default.
 - If deleting a file, instead of `rm -rf`, use `rm` which moves files or directories to Trash
 - If committing, NEVER NEVER NEVER disable signature verification. if committing fails or times out, just pause and ask me to sign.
+- if using `if` or conditionals or for/each/etc loops, use early return / next where it improves legibility.
+- if writing an `if` statement in ruby, dont use `unless`.
