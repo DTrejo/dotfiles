@@ -6,7 +6,7 @@ allowed-tools: [Read, Write, Bash(ls:*), Bash(mkdir:*), SlashCommand, AskUserQue
 
 <context>
 Next prompt number: !`ls ./prompts/*.md 2>/dev/null | grep -oE '^[0-9]+' | sort -n | tail -1`
-Prompts directory: !`[ -d ./prompts ] && echo "exists" || echo "missing"`
+Prompts directory: !`ls -d ./prompts 2>/dev/null || echo "missing"`
 </context>
 
 <objective>

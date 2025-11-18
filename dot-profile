@@ -142,6 +142,11 @@ alias class='cd ~/Dropbox/classes'
 alias desktop='$HOME/Desktop'
 alias ..='cd ..'
 alias ...='cd ../../'
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+else
+  echo "zoxide not found"
+fi
 
 # raise the number of files a process is allowed to have open.
 ulimit -S -n 5000
