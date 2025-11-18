@@ -2,6 +2,7 @@
 # aliases
 #
 alias editprofile='"cursor" --wait -w ~/.profile; . ~/.profile'
+alias editmemory='"cursor" --wait -w ~/.claude/CLAUDE.md'
 alias o='open .'
 alias n='npm'
 alias s='cursor .'

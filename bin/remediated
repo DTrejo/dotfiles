@@ -35,3 +35,4 @@ if (comment) {
 }
 await jira(["transition", "--noedit", `In Progress`, key])
 await jira(["transition", "--noedit", `Completed`, key])
+// await jira(["transition", "--noedit", `Declined`, key])
