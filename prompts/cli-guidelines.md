@@ -1,0 +1,14 @@
+# CLI guidelines
+- Ruby script
+- `-h`, `--h` help message
+- on start, check for CLI deps and print install instructions if not present and exit
+- `popen3` like `run()` for command execution to prevent shell escapes
+- `debug()` print statements throughout the code that are enabled with DEBUG=1
+- `-t`, `--test` to run the tests
+- at least one minitest for each function if possible
+- at least one end-to-end minitest
+- example CLI tools: `which draft` `which issue`
+- usually we want defaults that allow us to run the script without arguments
+- validate arguments for security
+- use `OptionParser` for argument parsing
+- `main` is the entry point
