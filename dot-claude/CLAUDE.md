@@ -2,7 +2,8 @@
 - If committing, NEVER use `git add .`, when committing ALWAYS commit specific files, e.g. `git add file1.js file2.js`.
 - If running commands, prefer to use `Makefile` commands or `npm run scripts`.
 - If creating a PR, use `gh pr create -d -w` to open the web browser afterwards and in draft mode by default.
-- If deleting a file, instead of `rm -rf`, use `rm` which moves files or directories to Trash
+- If using rm, it is an alias which moves files and directories to Trash, no flags needed
 - If committing, NEVER NEVER NEVER disable signature verification. if committing fails or times out, just pause and ask me to sign.
-- if using `if` or conditionals or for/each/etc loops, use early return / next where it improves legibility.
-- if writing an `if` statement in ruby, dont use `unless`.
+- If using `if` or conditionals or for/each/etc loops, use early return / next where it improves legibility.
+- If writing an `if` statement in ruby, dont use `unless`.
+- If cloning a github repo, use the HTTPS url.
