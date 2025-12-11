@@ -3,22 +3,58 @@
 require 'json'
 require 'shellwords'
 
+DEBUG = false
+
 # Read JSON input from stdin
 input = JSON.parse($stdin.read)
+
+# Debug: print full JSON to stdout
+if DEBUG
+  puts 'input = '
+  puts JSON.pretty_generate(input)
+  _example_json = {
+    "session_id": 'abc',
+    "transcript_path": '/Users/user/.claude/projects/some.jsonl',
+    "cwd": '/Users/user/dev/dotfiles',
+    "model": {
+      "id": 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+      "display_name": 'Sonnet 4.5'
+    },
+    "workspace": {
+      "current_dir": '/Users/user/dev/dotfiles',
+      "project_dir": '/Users/user/dev/dotfiles'
+    },
+    "version": '2.0.64',
+    "output_style": {
+      "name": 'default'
+    },
+    "cost": {
+      "total_cost_usd": 0.2780467,
+      "total_duration_ms": 492_396,
+      "total_api_duration_ms": 168_356,
+      "total_lines_added": 22,
+      "total_lines_removed": 3
+    },
+    "exceeds_200k_tokens": false
+  }
+  puts "\n---\n"
+end
 
 # Extract data
 model_name = input.dig('model', 'display_name')
 current_dir = input.dig('workspace', 'current_dir')
 cost = input.dig('cost', 'total_cost_usd')
+# context_used = input.dig('context', 'used_tokens')
+# context_total = input.dig('context', 'total_tokens')
 
 # Parse model name (handles various formats)
 # e.g., "us.anthropic.claude-sonnet-4-5-20250929-v1:0" -> "sonnet 4.5"
 # e.g., "Sonnet 4.5" -> "sonnet 4.5"
 if model_name =~ /claude-(\w+)-(\d+)-(\d+)/
   # Extract from full model ID format
-  family = $1  # sonnet, opus, haiku
-  major = $2   # 4
-  minor = $3   # 5
+  family = Regexp.last_match(1)  # sonnet, opus, haiku
+  major = Regexp.last_match(2)   # 4
+  minor = Regexp.last_match(3)   # 5
   model_display = "#{family} #{major}.#{minor}"
 else
   # Already in friendly format, just lowercase it
@@ -50,11 +86,17 @@ status += "\033[36m#{model_display}\033[0m"
 status += " #{relative_dir}"
 
 # Yellow git branch in parens (like your prompt)
-if !git_branch.empty?
-  status += "\033[33m(#{git_branch})\033[0m"
-end
+status += "\033[33m(#{git_branch})\033[0m" unless git_branch.empty?
 
 # AI emoji separator - options: 🤖 ✨ 🧠 ⚡ 🔮
-status += " 🤖"
+status += ' 🤖'
+
+# Add context info if available
+# if context_used && context_total
+#   # Format as "10k/200k" style
+#   used_k = (context_used / 1000.0).round
+#   total_k = (context_total / 1000.0).round
+#   status += " \033[35m#{used_k}k/#{total_k}k\033[0m"
+# end
 
 puts status
