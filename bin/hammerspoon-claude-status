@@ -28,12 +28,12 @@ INSTALL_INSTRUCTIONS = <<~INSTRUCTIONS
 -- Shows orange asterisk when iTerm2 has dock badge
 -- ============================================
 
-local claudeMenu = hs.menubar.new()
-local claudeTimer = nil
-local claudeTask = nil
-local rotationFrame = 0
-local animationTimer = nil
-local hasUnread = false
+claudeMenu = hs.menubar.new()
+claudeTimer = nil
+claudeTask = nil
+rotationFrame = 0
+animationTimer = nil
+hasUnread = false
 
 local asterisks = {"✱", "✲", "✳", "✴"}
 
@@ -97,7 +97,7 @@ local function checkClaudeStatus()
 end
 
 -- Clear indicator when iTerm2 gains focus
-local appWatcher = hs.application.watcher.new(function(appName, eventType, app)
+appWatcher = hs.application.watcher.new(function(appName, eventType, app)
   if appName == "iTerm2" and eventType == hs.application.watcher.activated then
     hideIndicator()
   end

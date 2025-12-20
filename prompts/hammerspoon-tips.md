@@ -67,11 +67,11 @@ animationTimer = hs.timer.doEvery(0.25, animateFunction)
 
 ## App Watchers
 
-**Important:** Anything long-running (watchers, timers, tasks) declared with `local` gets garbage collected when it goes out of scope. Either remove `local` (make global) or store a reference somewhere persistent.
+**Important:** Anything long-running (watchers, timers, tasks) declared with `local` gets garbage collected when it goes out of scope. Remove `local` to make it global.
 
 React to focus changes:
 ```lua
-local appWatcher = hs.application.watcher.new(function(appName, eventType, app)
+appWatcher = hs.application.watcher.new(function(appName, eventType, app)
   if appName == "iTerm2" and eventType == hs.application.watcher.activated then
     hideIndicator()
   end
