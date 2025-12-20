@@ -1,0 +1,180 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+USAGE = <<~USAGE
+  hammerspoon-claude-status - Menu bar indicator for iTerm2 dock badge
+
+  Usage:
+    hammerspoon-claude-status                  Check if iTerm2 has dock badge
+    hammerspoon-claude-status --app Slack      Check a different app's badge
+    hammerspoon-claude-status --install        Print Hammerspoon setup instructions
+    hammerspoon-claude-status --help           Show this help
+
+  Output:
+    Prints badge count or "none" to stdout
+    Exit code 0 = has badge, 1 = no badge
+USAGE
+
+DEFAULT_APP = 'iTerm'
+
+INSTALL_INSTRUCTIONS = <<~INSTRUCTIONS
+## Hammerspoon Setup for Claude Status Indicator
+
+### 1. Add to ~/.hammerspoon/init.lua
+
+```lua
+-- ============================================
+-- Claude Status Menu Bar Indicator
+-- Shows orange asterisk when iTerm2 has dock badge
+-- ============================================
+
+local claudeMenu = hs.menubar.new()
+local claudeTimer = nil
+local claudeTask = nil
+local rotationFrame = 0
+local animationTimer = nil
+local hasUnread = false
+
+local asterisks = {"✱", "✲", "✳", "✴"}
+
+local function focusITerm()
+  hs.application.launchOrFocus("iTerm")
+end
+
+local function setMenuTitle(text, color)
+  claudeMenu:setTitle(hs.styledtext.new(text or asterisks[1], {
+    color = {hex = color or "#FFFFFF"},
+    font = {size = 14}
+  }))
+end
+
+local function animateAsterisk()
+  rotationFrame = (rotationFrame % #asterisks) + 1
+  local space = (rotationFrame % 2 == 0) and " " or ""
+  setMenuTitle("🧧" .. space .. asterisks[rotationFrame])
+end
+
+local function showIndicator()
+  -- Start continuous animation if not already running
+  if not animationTimer then
+    print("[Claude Status] Starting animation")
+    rotationFrame = 0
+    animationTimer = hs.timer.doEvery(0.25, animateAsterisk)
+  end
+  hasUnread = true
+end
+
+local function hideIndicator()
+  if animationTimer then
+    animationTimer:stop()
+    animationTimer = nil
+  end
+  setMenuTitle(asterisks[1], "#808080") -- Gray
+  hasUnread = false
+end
+
+local function checkClaudeStatus()
+  -- Skip check if iTerm2 is frontmost (user is looking at it)
+  local frontApp = hs.application.frontmostApplication()
+  if frontApp and frontApp:name() == "iTerm2" then
+    print("[Claude Status] Check: iTerm2 frontmost, hiding")
+    hideIndicator()
+    return
+  end
+
+  local statusPath = "/Users/" .. os.getenv("USER") .. "/dev/dotfiles/bin/hammerspoon-claude-status"
+  claudeTask = hs.task.new("/bin/zsh", function(exitCode, stdOut, stdErr)
+    local badge = (stdOut or ""):gsub("%s+", "")
+    if exitCode == 0 then
+      print("[Claude Status] Check: badge=" .. badge)
+      showIndicator()
+    else
+      print("[Claude Status] Check: no badge")
+      hideIndicator()
+    end
+  end, {"-lc", statusPath})
+  claudeTask:start()
+end
+
+-- Clear indicator when iTerm2 gains focus
+local appWatcher = hs.application.watcher.new(function(appName, eventType, app)
+  if appName == "iTerm2" and eventType == hs.application.watcher.activated then
+    hideIndicator()
+  end
+end)
+appWatcher:start()
+
+-- Setup
+claudeMenu:setClickCallback(focusITerm)
+claudeMenu:setTooltip("Claude Status - Click to focus iTerm2")
+
+-- Check every 5 seconds
+claudeTimer = hs.timer.doEvery(5, checkClaudeStatus)
+checkClaudeStatus()
+
+print("✓ Claude Status indicator loaded")
+```
+
+### 2. Reload Hammerspoon
+
+Click Hammerspoon menu bar icon → "Reload Config"
+
+### 3. Verify
+
+- Run Claude Code in iTerm2, make sure iTerm2 shows red badge on dock icon
+- Switch to another app
+- Orange asterisk should appear in menu bar
+- Click asterisk or Cmd+Tab to iTerm2 to clear it
+INSTRUCTIONS
+
+def main
+  if ARGV.include?('--help') || ARGV.include?('-h')
+    puts USAGE
+    exit 0
+  end
+
+  if ARGV.include?('--install')
+    puts INSTALL_INSTRUCTIONS
+    exit 0
+  end
+
+  # Parse --app flag
+  app_name = DEFAULT_APP
+  if (idx = ARGV.index('--app'))
+    app_name = ARGV[idx + 1] || DEFAULT_APP
+  end
+
+  badge = dock_badge(app_name)
+  if badge
+    puts badge
+    exit 0
+  else
+    puts "none"
+    exit 1
+  end
+end
+
+def dock_badge(app_name)
+  # Query app's dock badge via accessibility API
+  # AXStatusLabel contains the badge count (or nil if no badge)
+  script = <<~JAVASCRIPT
+    const app = Application("System Events");
+    const dock = app.processes.byName("Dock");
+    const items = dock.uiElements[0].uiElements();
+    for (let item of items) {
+      try {
+        if (item.name() === "#{app_name}") {
+          const badge = item.attributes.byName("AXStatusLabel").value();
+          if (badge) { console.log(badge); }
+        }
+      } catch(e) {}
+    }
+  JAVASCRIPT
+
+  require 'open3'
+  _stdout, stderr, _status = Open3.capture3('osascript', '-l', 'JavaScript', stdin_data: script)
+  result = stderr.strip
+  result.empty? ? nil : result
+end
+
+main
