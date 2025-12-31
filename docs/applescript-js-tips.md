@@ -221,3 +221,151 @@ ObjC.unwrap(url.path);
 
 cp "$FILEPATH" ~/Downloads/exported-file.m4a
 ```
+
+## 12. Poll for async conditions with waitForCondition
+
+Apps need time to launch and become ready. Poll instead of fixed delays:
+
+```javascript
+function waitForCondition(checkFunction, timeout = 5000) {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeout) {
+    if (checkFunction()) {
+      return true;
+    }
+    delay(0.1); // 100ms poll interval
+  }
+  return false;
+}
+
+// Usage: wait for app to become frontmost
+const app = Application("Voice Memos");
+app.activate();
+
+const isFront = waitForCondition(() => app.frontmost());
+if (!isFront) {
+  console.log("App failed to become frontmost");
+}
+
+// Wait for menu item state to change
+const menuItem = fileMenu.menuItems["Done Editing"];
+menuItem.click();
+
+// Wait until menu item is disabled (operation complete)
+const isDone = waitForCondition(() => !menuItem.enabled(), 10000);
+if (isDone) {
+  console.log("Operation completed");
+}
+```
+
+## 13. Check app state: running() vs frontmost()
+
+Running and frontmost are different states - check both:
+
+```javascript
+const app = Application("Voice Memos");
+
+// Check if app is running at all
+const isRunning = app.running();
+
+if (!isRunning) {
+  app.activate();
+  waitForCondition(() => app.running());
+}
+
+// Check if app is frontmost (active window)
+const isFront = app.frontmost();
+if (!isFront) {
+  app.activate();
+  waitForCondition(() => app.frontmost());
+}
+```
+
+## 14. Access menu items by full path
+
+Navigate to specific menu items using the full menu path:
+
+```javascript
+const systemEvents = Application("System Events");
+const fileMenu = systemEvents.processes["Voice Memos"]
+  .menuBars[0]
+  .menuBarItems["File"]
+  .menus["File"];
+
+// Access specific menu item
+const menuItem = fileMenu.menuItems["Start New Recording"];
+menuItem.click();
+```
+
+## 15. Use menu item state to detect app state
+
+Menu item enabled/disabled state can reveal app state:
+
+```javascript
+const fileMenu = systemEvents.processes["Voice Memos"]
+  .menuBars[0]
+  .menuBarItems["File"]
+  .menus["File"];
+
+// Check if currently recording by menu item state
+const doneMenuItem = fileMenu.menuItems["Done Editing"];
+const isRecording = doneMenuItem.enabled();
+
+if (isRecording) {
+  doneMenuItem.click(); // Stop recording
+} else {
+  fileMenu.menuItems["Start New Recording"].click(); // Start recording
+}
+```
+
+## 16. Read environment variables with ObjC
+
+Access shell environment variables from JXA:
+
+```javascript
+ObjC.import("stdlib");
+
+// Read DEBUG env var
+let DEBUG = false;
+try {
+  const debugEnv = $.getenv("DEBUG");
+  if (debugEnv) {
+    DEBUG = ObjC.unwrap(debugEnv) === "1";
+  }
+} catch (e) {
+  // Env var not set
+}
+
+function debug(msg) {
+  if (DEBUG) console.log(msg);
+}
+
+// Usage: DEBUG=1 ./script.js
+```
+
+## 17. Create standalone executable JXA scripts
+
+Use shebang and handle command-line arguments:
+
+```javascript
+#!/usr/bin/osascript -l JavaScript
+
+function run(argv) {
+  // Handle flags
+  if (argv.length > 0 && argv[0] === "--help") {
+    console.log("Usage: script.js [--help]");
+    return;
+  }
+
+  // Main script logic
+  const arg1 = argv[0] || "default";
+  console.log("Argument: " + arg1);
+}
+```
+
+Make it executable:
+
+```bash
+chmod +x script.js
+./script.js --help
+```
