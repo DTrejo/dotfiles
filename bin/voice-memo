@@ -89,6 +89,93 @@ function toggleVoiceMemo() {
     return false
   }
 
+  // Get file URL from clipboard and return POSIX path
+  function copyFileUrlFromClipboard() {
+    ObjC.import('AppKit')
+    ObjC.import('Foundation')
+
+    const pasteboard = $.NSPasteboard.generalPasteboard
+    const fileURLString = pasteboard.stringForType($.NSPasteboardTypeFileURL)
+
+    if (fileURLString.js) {
+      const url = $.NSURL.URLWithString(fileURLString)
+      return ObjC.unwrap(url.path)
+    }
+    return null
+  }
+
+  // Get Downloads directory path
+  function getDownloadsDir() {
+    ObjC.import('Foundation')
+    const homeDir = ObjC.unwrap($.NSHomeDirectory())
+    return homeDir + '/Downloads'
+  }
+
+  // Get first static text value from Voice Memos toolbar
+  // Returns the text value or defaultValue if not found
+  function firstToolbarTextValue(systemEvents, defaultValue = 'Recording') {
+    try {
+      const vmWindow = systemEvents.processes['Voice Memos'].windows[0]
+      const toolbar = vmWindow.toolbars[0]
+      const toolbarElements = toolbar.uiElements()
+
+      // Find the first static text element
+      for (let i = 0; i < toolbarElements.length; i++) {
+        if (toolbarElements[i].role() === 'AXStaticText') {
+          return toolbarElements[i].value()
+        }
+      }
+    } catch (e) {
+      debug('Could not get toolbar text: ' + e)
+    }
+    return defaultValue
+  }
+
+  // Copy file to destination with deduplication (adds number suffix if file exists)
+  // Returns: {success: boolean, destPath: string, error: string}
+  function copyFileSafe(sourcePath, destDir, fileName) {
+    ObjC.import('Foundation')
+
+    const fileExt = fileName.includes('.')
+      ? fileName.substring(fileName.lastIndexOf('.'))
+      : '.m4a'
+    const baseName = fileName.includes('.')
+      ? fileName.substring(0, fileName.lastIndexOf('.'))
+      : fileName
+
+    let destPath = destDir + '/' + fileName
+    if (!fileName.includes('.')) {
+      destPath = destPath + '.m4a'
+    }
+
+    // Check for duplicates and add number suffix if needed
+    const fileManager = $.NSFileManager.defaultManager
+    let counter = 1
+    while (fileManager.fileExistsAtPath(destPath)) {
+      destPath = destDir + '/' + baseName + ' (' + counter + ')' + fileExt
+      counter++
+    }
+
+    // Copy the file
+    const sourceURL = $.NSURL.fileURLWithPath(sourcePath)
+    const destURL = $.NSURL.fileURLWithPath(destPath)
+    const errorPtr = Ref()
+
+    const success = fileManager.copyItemAtURLToURLError(
+      sourceURL,
+      destURL,
+      errorPtr
+    )
+
+    if (success) {
+      return {success: true, destPath: destPath, error: null}
+    } else {
+      const error = ObjC.unwrap(errorPtr[0])
+      const errorDesc = error ? error.localizedDescription.js : 'Unknown error'
+      return {success: false, destPath: null, error: errorDesc}
+    }
+  }
+
   debug('Checking if Voice Memos is running...')
   const isRunning = voiceMemos.running()
   debug('Voice Memos running: ' + isRunning)
@@ -123,12 +210,54 @@ function toggleVoiceMemo() {
   debug('Currently recording: ' + isRecording)
 
   if (isRecording) {
+    // Get recording name from toolbar before stopping
+    debug('Getting recording name from toolbar...')
+    const recordingName = firstToolbarTextValue(systemEvents)
+    debug('Recording name: ' + recordingName)
+
     // Stop the recording
     debug('Stopping recording...')
     debug('Clicking Done Editing...')
     doneMenuItem.click()
     debug('Click completed')
-    return 'Stopped and saved voice memo recording'
+
+    // Wait for recording to finish saving (menu state changes)
+    debug('Waiting for recording to be saved...')
+    const isSaved = waitForCondition(() => !doneMenuItem.enabled(), 10000)
+    debug('Recording saved: ' + isSaved)
+
+    if (!isSaved) {
+      return 'Stopped recording but timed out waiting for save'
+    }
+
+    // Automatically copy recording to Downloads
+    debug('Copying recording to Downloads...')
+
+    // Copy recording to clipboard with Cmd+C
+    debug('Pressing Cmd+C...')
+    systemEvents.keystroke('c', {using: 'command down'})
+    delay(0.5)
+
+    // Get file path from clipboard
+    const sourcePath = copyFileUrlFromClipboard()
+
+    if (sourcePath) {
+      debug('Source path: ' + sourcePath)
+
+      const downloadsDir = getDownloadsDir()
+      debug('Destination dir: ' + downloadsDir)
+
+      const result = copyFileSafe(sourcePath, downloadsDir, recordingName)
+
+      if (result.success) {
+        const fileName = result.destPath.substring(result.destPath.lastIndexOf('/') + 1)
+        return 'Stopped recording and copied to ~/Downloads/' + fileName
+      } else {
+        return 'Stopped recording but copy failed: ' + result.error
+      }
+    } else {
+      return 'Stopped recording but could not get file from clipboard'
+    }
   } else {
     // Start new recording
     debug('Starting new recording...')
