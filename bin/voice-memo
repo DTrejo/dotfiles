@@ -3,8 +3,8 @@
 
 // Handle --install flag
 function run(argv) {
-    if (argv.length > 0 && argv[0] === '--install') {
-        const instructions = `## Hammerspoon Setup for Voice Memo Hotkey
+  if (argv.length > 0 && argv[0] === '--install') {
+    const instructions = `## Hammerspoon Setup for Voice Memo Hotkey
 
 ### 1. Install Hammerspoon
 
@@ -49,94 +49,96 @@ Click Hammerspoon menu bar icon → "Reload Config"
 - First press: Opens Voice Memos and starts recording
 - Second press: Stops and saves the recording
 - You'll get a macOS notification confirming the action
-`;
-        console.log(instructions);
-        return;
-    }
+`
+    console.log(instructions)
+    return
+  }
 
-    // Continue with normal voice memo toggle logic
-    return toggleVoiceMemo();
+  // Continue with normal voice memo toggle logic
+  return toggleVoiceMemo()
 }
 
 function toggleVoiceMemo() {
-    const voiceMemos = Application('Voice Memos');
-    const systemEvents = Application('System Events');
+  const voiceMemos = Application('Voice Memos')
+  const systemEvents = Application('System Events')
 
-    // Debug logging helper
-    ObjC.import('stdlib');
-    let DEBUG = false;
-    try {
-        const debugEnv = $.getenv('DEBUG');
-        if (debugEnv) {
-            DEBUG = ObjC.unwrap(debugEnv) === '1';
-        }
-    } catch (e) {
-        // DEBUG env var not set
+  // Debug logging helper
+  ObjC.import('stdlib')
+  let DEBUG = false
+  try {
+    const debugEnv = $.getenv('DEBUG')
+    if (debugEnv) {
+      DEBUG = ObjC.unwrap(debugEnv) === '1'
     }
-    function debug(msg) {
-        if (DEBUG) console.log(msg);
+  } catch (e) {
+    // DEBUG env var not set
+  }
+  function debug(msg) {
+    if (DEBUG) console.log(msg)
+  }
+
+  // Function to wait for a condition with polling
+  function waitForCondition(checkFunction, timeout = 5000) {
+    const startTime = Date.now()
+    while (Date.now() - startTime < timeout) {
+      if (checkFunction()) {
+        return true
+      }
+      delay(0.1) // 100ms
     }
+    return false
+  }
 
-    // Function to wait for a condition with polling
-    function waitForCondition(checkFunction, timeout = 5000) {
-        const startTime = Date.now();
-        while (Date.now() - startTime < timeout) {
-            if (checkFunction()) {
-                return true;
-            }
-            delay(0.1); // 100ms
-        }
-        return false;
-    }
+  debug('Checking if Voice Memos is running...')
+  const isRunning = voiceMemos.running()
+  debug('Voice Memos running: ' + isRunning)
 
-    debug("Checking if Voice Memos is running...");
-    const isRunning = voiceMemos.running();
-    debug("Voice Memos running: " + isRunning);
+  // Activate Voice Memos if not running
+  if (!isRunning) {
+    debug('Starting Voice Memos...')
+    voiceMemos.activate()
 
-    // Activate Voice Memos if not running
-    if (!isRunning) {
-        debug("Starting Voice Memos...");
-        voiceMemos.activate();
+    debug('Waiting for Voice Memos to run...')
+    const didRun = waitForCondition(() => voiceMemos.running())
+    debug('Voice Memos running after wait: ' + didRun)
+  } else {
+    debug('Voice Memos already running, activating...')
+    voiceMemos.activate()
+  }
 
-        debug("Waiting for Voice Memos to run...");
-        const didRun = waitForCondition(() => voiceMemos.running());
-        debug("Voice Memos running after wait: " + didRun);
-    } else {
-        debug("Voice Memos already running, activating...");
-        voiceMemos.activate();
-    }
+  debug('Waiting for Voice Memos to be frontmost...')
+  const isFront = waitForCondition(() => voiceMemos.frontmost())
+  debug('Voice Memos frontmost after wait: ' + isFront)
 
-    debug("Waiting for Voice Memos to be frontmost...");
-    const isFront = waitForCondition(() => voiceMemos.frontmost());
-    debug("Voice Memos frontmost after wait: " + isFront);
+  debug('Accessing File menu...')
+  const fileMenu =
+    systemEvents.processes['Voice Memos'].menuBars[0].menuBarItems['File']
+      .menus['File']
+  debug('File menu accessed')
 
-    debug("Accessing File menu...");
-    const fileMenu = systemEvents.processes['Voice Memos'].menuBars[0].menuBarItems['File'].menus['File'];
-    debug("File menu accessed");
+  // Check if currently recording by checking if "Done Editing" is enabled
+  debug('Checking if currently recording...')
+  const doneMenuItem = fileMenu.menuItems['Done Editing']
+  const isRecording = doneMenuItem.enabled()
+  debug('Currently recording: ' + isRecording)
 
-    // Check if currently recording by checking if "Done Editing" is enabled
-    debug("Checking if currently recording...");
-    const doneMenuItem = fileMenu.menuItems['Done Editing'];
-    const isRecording = doneMenuItem.enabled();
-    debug("Currently recording: " + isRecording);
+  if (isRecording) {
+    // Stop the recording
+    debug('Stopping recording...')
+    debug('Clicking Done Editing...')
+    doneMenuItem.click()
+    debug('Click completed')
+    return 'Stopped and saved voice memo recording'
+  } else {
+    // Start new recording
+    debug('Starting new recording...')
+    debug('Accessing Start New Recording menu item...')
+    const menuItem = fileMenu.menuItems['Start New Recording']
+    debug('Menu item accessed, enabled: ' + menuItem.enabled())
 
-    if (isRecording) {
-        // Stop the recording
-        debug("Stopping recording...");
-        debug("Clicking Done Editing...");
-        doneMenuItem.click();
-        debug("Click completed");
-        return "Stopped and saved voice memo recording";
-    } else {
-        // Start new recording
-        debug("Starting new recording...");
-        debug("Accessing Start New Recording menu item...");
-        const menuItem = fileMenu.menuItems['Start New Recording'];
-        debug("Menu item accessed, enabled: " + menuItem.enabled());
-
-        debug("Clicking Start New Recording...");
-        menuItem.click();
-        debug("Click completed");
-        return "Started new voice memo recording";
-    }
+    debug('Clicking Start New Recording...')
+    menuItem.click()
+    debug('Click completed')
+    return 'Started new voice memo recording'
+  }
 }
