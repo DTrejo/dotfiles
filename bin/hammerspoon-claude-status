@@ -20,7 +20,13 @@ DEFAULT_APP = 'iTerm'
 INSTALL_INSTRUCTIONS = <<~INSTRUCTIONS
 ## Hammerspoon Setup for Claude Status Indicator
 
-### 1. Add to ~/.hammerspoon/init.lua
+### 1. Install Hammerspoon
+
+```bash
+brew install hammerspoon --cask
+```
+
+### 2. Add to ~/.hammerspoon/init.lua
 
 ```lua
 -- ============================================
@@ -115,11 +121,11 @@ checkClaudeStatus()
 print("✓ Claude Status indicator loaded")
 ```
 
-### 2. Reload Hammerspoon
+### 3. Reload Hammerspoon
 
 Click Hammerspoon menu bar icon → "Reload Config"
 
-### 3. Verify
+### 4. Verify
 
 - Run Claude Code in iTerm2, make sure iTerm2 shows red badge on dock icon
 - Switch to another app
