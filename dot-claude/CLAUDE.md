@@ -1,7 +1,7 @@
 - If running tests, prefer to run only specific failed tests first and fail on the first broken test. Only once all are passing should you run all the tests. e.g. `make rspec a_spec.rb:123 --next-failure`
 - If committing, NEVER use `git add .`, when committing ALWAYS commit specific files, e.g. `git add file1.js file2.js`.
 - If running commands, prefer to use `Makefile` commands or `npm run scripts`.
-- If creating a PR, use `gh pr create -d` to create a PR in draft mode by default, then `open` the PR URL in the web browser afterwards.
+- If creating a PR, use `gh pr create -d` to create a PR in draft mode by default, then run `ghe` (no output expected) to open the PR URL in the web browser afterwards.
 - If using rm, it is an alias which moves files and directories to Trash, no flags needed
 - If committing, NEVER NEVER NEVER disable signature verification. if committing fails or times out, just pause and ask me to sign.
 - If using `if` or conditionals or for/each/etc loops, use early return / next where it improves legibility.
