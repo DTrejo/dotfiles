@@ -10,8 +10,7 @@ input = JSON.parse($stdin.read)
 
 # Debug: print full JSON to stdout
 if DEBUG
-  puts 'input = '
-  puts JSON.pretty_generate(input)
+  puts "input = #{JSON.generate(input)}"
   _example_json = {
     "session_id": 'abc',
     "transcript_path": '/Users/user/.claude/projects/some.jsonl',
@@ -44,9 +43,9 @@ end
 model_name = input.dig('model', 'display_name')
 current_dir = input.dig('workspace', 'current_dir')
 cost = input.dig('cost', 'total_cost_usd')
-context_input = input.dig('context_window', 'total_input_tokens')
-context_output = input.dig('context_window', 'total_output_tokens')
-context_size = input.dig('context_window', 'context_window_size')
+# context_input = input.dig('context_window', 'total_input_tokens')
+# context_output = input.dig('context_window', 'total_output_tokens')
+# context_size = input.dig('context_window', 'context_window_size')
 
 # Parse model name (handles various formats)
 # e.g., "us.anthropic.claude-sonnet-4-5-20250929-v1:0" -> "sonnet 4.5"
@@ -93,13 +92,13 @@ status += "\033[33m(#{git_branch})\033[0m" unless git_branch.empty?
 status += ' 🤖'
 
 # Add context info if available
-if context_input && context_output && context_size
-  # Format as "5% 10k/200k" style (percent used, consumed/total)
-  used = context_input + context_output
-  used_pct = (used.to_f / context_size * 100).round
-  used_k = (used / 1000.0).round
-  size_k = (context_size / 1000.0).round
-  status += " \033[35m#{used_pct}% #{used_k}k/#{size_k}k\033[0m"
-end
+# if context_input && context_output && context_size
+#   # Format as "5% 10k/200k" style (percent used, consumed/total)
+#   used = context_input + context_output
+#   used_pct = (used.to_f / context_size * 100).round
+#   used_k = (used / 1000.0).round
+#   size_k = (context_size / 1000.0).round
+#   status += " \033[35m#{used_pct}% #{used_k}k/#{size_k}k\033[0m"
+# end
 
 puts status
