@@ -72,12 +72,14 @@ end
 
 # Get PR state using gh cli
 def get_pr_state
-  pr_json = `gh pr view --json state,isDraft,autoMergeRequest 2>/dev/null`
+  pr_json = `gh pr view --json state,isDraft,autoMergeRequest,statusCheckRollup,number 2>/dev/null`
   return nil if pr_json.empty? || $?.exitstatus != 0
 
   pr = JSON.parse(pr_json)
+  checks = pr['statusCheckRollup'] || []
+  ci_failing = checks.any? { |c| c['conclusion'] == 'FAILURE' }
 
-  case pr['state']
+  state = case pr['state']
   when 'MERGED'
     :merged
   when 'OPEN'
@@ -89,11 +91,37 @@ def get_pr_state
       :open
     end
   end
+
+  # Get unresolved comment count via GraphQL
+  unresolved = get_unresolved_comment_count(pr['number'])
+
+  { state: state, unresolved_comments: unresolved, ci_failing: ci_failing }
 rescue
   nil
 end
 
-pr_state = git_branch.empty? ? nil : get_pr_state
+# Count unresolved review threads using GraphQL
+def get_unresolved_comment_count(pr_number)
+  repo_json = `gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null`.strip
+  return 0 if repo_json.empty?
+
+  owner, repo = repo_json.split('/')
+  query = 'query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved}}}}}'
+
+  result_json = `gh api graphql -F owner=#{owner.shellescape} -F repo=#{repo.shellescape} -F pr=#{pr_number} -f query=#{query.shellescape} 2>/dev/null`
+  return 0 if result_json.empty? || $?.exitstatus != 0
+
+  result = JSON.parse(result_json)
+  threads = result.dig('data', 'repository', 'pullRequest', 'reviewThreads', 'nodes') || []
+  threads.count { |t| t['isResolved'] == false }
+rescue
+  0
+end
+
+pr_info = git_branch.empty? ? nil : get_pr_state
+pr_state = pr_info&.dig(:state)
+pr_unresolved = pr_info&.dig(:unresolved_comments) || 0
+pr_ci_failing = pr_info&.dig(:ci_failing)
 
 # Build status line matching your prompt style
 # Reset color at the start for a clean baseline
@@ -114,17 +142,20 @@ status += " #{relative_dir}"
 status += "\033[33m(#{git_branch})\033[0m" unless git_branch.empty?
 
 # PR state indicator (GitHub colors)
+comment_suffix = pr_unresolved > 0 ? " \033[33m🗨 #{pr_unresolved}\033[0m" : ""
+ci_suffix = pr_ci_failing ? " \033[31m✗ci\033[0m" : ""
 case pr_state
 when :draft
-  status += " \033[90mdraft\033[0m"
+  status += " \033[90mdraft\033[0m#{comment_suffix}#{ci_suffix}"
 when :open
-  status += " \033[32mopen\033[0m"
+  status += " \033[32mopen\033[0m#{comment_suffix}#{ci_suffix}"
 when :automerge
-  status += " \033[32mautomerge\033[0m"
+  status += " \033[32mautomerge\033[0m#{comment_suffix}#{ci_suffix}"
 when :merged
   status += " \033[35mmerged\033[0m"
 else
-  status += " \033[90m◌\033[0m" if !git_branch.empty?
+  # Only show dotted circle if not on a default branch
+  status += " \033[90m◌\033[0m" if !git_branch.empty? && !%w[main master].include?(git_branch)
 end
 
 # AI emoji separator - options: 🤖 ✨ 🧠 ⚡ 🔮
