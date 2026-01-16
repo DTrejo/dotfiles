@@ -1,9 +1,29 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require 'json'
-require 'shellwords'
+require 'open3'
 
 DEBUG = false
+
+# Validation helpers - raise on invalid input
+def validate_path!(path)
+  raise ArgumentError, "Invalid path: #{path.inspect}" unless path.match?(%r{\A[\w/.~-]+\z})
+
+  path
+end
+
+def validate_repo_name!(name)
+  raise ArgumentError, "Invalid repo name: #{name.inspect}" unless name.match?(/\A[\w.-]+\/[\w.-]+\z/)
+
+  name
+end
+
+def validate_positive_integer!(val)
+  raise ArgumentError, "Invalid integer: #{val.inspect}" unless val.is_a?(Integer) && val.positive?
+
+  val
+end
 
 # Read JSON input from stdin
 input = JSON.parse($stdin.read)
@@ -66,14 +86,17 @@ relative_dir = current_dir.sub(/^#{ENV['HOME']}/, '~')
 
 # Get git branch
 git_branch = ''
-if system("git -C #{current_dir.shellescape} rev-parse --git-dir > /dev/null 2>&1")
-  git_branch = `git -C #{current_dir.shellescape} --no-optional-locks branch --show-current 2>/dev/null`.strip
+validated_dir = validate_path!(current_dir)
+_, status = Open3.capture2('git', '-C', validated_dir, 'rev-parse', '--git-dir')
+if status.success?
+  git_branch, = Open3.capture2('git', '-C', validated_dir, '--no-optional-locks', 'branch', '--show-current')
+  git_branch = git_branch.strip
 end
 
 # Get PR state using gh cli
 def get_pr_state
-  pr_json = `gh pr view --json state,isDraft,autoMergeRequest,statusCheckRollup,number 2>/dev/null`
-  return nil if pr_json.empty? || $?.exitstatus != 0
+  pr_json, _, status = Open3.capture3('gh', 'pr', 'view', '--json', 'state,isDraft,autoMergeRequest,statusCheckRollup,number')
+  return nil if pr_json.empty? || !status.success?
 
   pr = JSON.parse(pr_json)
   checks = pr['statusCheckRollup'] || []
@@ -102,19 +125,33 @@ end
 
 # Count unresolved review threads using GraphQL
 def get_unresolved_comment_count(pr_number)
-  repo_json = `gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null`.strip
-  return 0 if repo_json.empty?
+  validate_positive_integer!(pr_number)
 
-  owner, repo = repo_json.split('/')
+  repo_json, _, status = Open3.capture3('gh', 'repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner')
+  return 0 unless status.success?
+
+  repo_name = repo_json.strip
+  return 0 if repo_name.empty?
+
+  validate_repo_name!(repo_name)
+  owner, repo = repo_name.split('/')
   query = 'query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved}}}}}'
 
-  result_json = `gh api graphql -F owner=#{owner.shellescape} -F repo=#{repo.shellescape} -F pr=#{pr_number} -f query=#{query.shellescape} 2>/dev/null`
-  return 0 if result_json.empty? || $?.exitstatus != 0
+  result_json, _, status = Open3.capture3(
+    'gh', 'api', 'graphql',
+    '-F', "owner=#{owner}",
+    '-F', "repo=#{repo}",
+    '-F', "pr=#{pr_number}",
+    '-f', "query=#{query}"
+  )
+  return 0 unless status.success?
 
   result = JSON.parse(result_json)
   threads = result.dig('data', 'repository', 'pullRequest', 'reviewThreads', 'nodes') || []
   threads.count { |t| t['isResolved'] == false }
-rescue
+rescue ArgumentError
+  raise
+rescue StandardError
   0
 end
 
