@@ -196,7 +196,7 @@ else
 end
 
 # AI emoji separator - options: 🤖 ✨ 🧠 ⚡ 🔮
-status += ' 🤖'
+status += ' 🤖 '
 
 # Add context info if available
 # if context_input && context_output && context_size
