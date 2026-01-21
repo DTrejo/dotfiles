@@ -125,7 +125,7 @@ def create_draft
       file.flush
 
       pr = run("gh pr create -a @me -d -f --body-file #{file.path}")
-      debug(pr)
+      puts pr
     end
     true
   end
