@@ -155,6 +155,20 @@ rescue StandardError
   0
 end
 
+# Count unpushed commits
+def get_unpushed_count(dir)
+  # Check if there's an upstream branch
+  _, status = Open3.capture2('git', '-C', dir, 'rev-parse', '--abbrev-ref', '@{u}')
+  return 0 unless status.success?
+
+  count, status = Open3.capture2('git', '-C', dir, '--no-optional-locks', 'rev-list', '@{u}..HEAD', '--count')
+  return 0 unless status.success?
+
+  count.strip.to_i
+end
+
+unpushed_count = git_branch.empty? ? 0 : get_unpushed_count(validated_dir)
+
 pr_info = git_branch.empty? ? nil : get_pr_state
 pr_state = pr_info&.dig(:state)
 pr_unresolved = pr_info&.dig(:unresolved_comments) || 0
@@ -177,6 +191,9 @@ status += " #{relative_dir}"
 
 # Yellow git branch in parens (like your prompt)
 status += "\033[33m(#{git_branch})\033[0m" unless git_branch.empty?
+
+# Unpushed commits indicator
+status += " \033[32m✎#{unpushed_count}\033[0m" if unpushed_count > 0
 
 # PR state indicator (GitHub colors)
 comment_suffix = pr_unresolved > 0 ? " \033[33m🗨 #{pr_unresolved}\033[0m" : ""
