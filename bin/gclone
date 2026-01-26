@@ -78,6 +78,7 @@ def main
 end
 
 def search_for_fzf(query)
+  sleep 0.1 # debounce
   return if query.nil? || query.strip.empty?
 
   user = get_config('gclone.user')
