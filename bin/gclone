@@ -1,0 +1,456 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'json'
+require 'open3'
+require 'optparse'
+
+USAGE = %(
+What does `gclone` do?
+Clone Github repos with autocomplete from your org's repo list.
+
+Usage:
+  gclone                 # Interactive mode with autocomplete
+  gclone owner/repo      # Clone repo to appropriate directory
+  gclone --setup         # Configure default org and directories
+
+First-time setup:
+  gclone --setup
+
+Configuration (git config --global):
+  gclone.user     - Your Github username
+  gclone.org      - Github org to clone from (for autocomplete)
+  gclone.orgdir   - Directory for org repos (e.g. ~/repos)
+  gclone.userdir  - Directory for your personal repos (e.g. ~/dev)
+  gclone.forks    - Directory for forks (e.g. ~/dev/forks)
+
+Examples:
+  gclone mycompany/repo  # Clone org repo to ~/repos/repo
+  gclone myuser/repo     # Clone your repo to ~/dev/repo
+  gclone other/repo      # Clone fork to ~/dev/forks/repo
+
+Feedback? Message David Trejo.
+)
+DEBUG = ENV['DEBUG']
+
+def parse_options
+  options = {}
+  OptionParser.new do |opts|
+    opts.banner = "Usage: #{$PROGRAM_NAME} [repo]"
+
+    opts.on('-h', '--help', 'Show this help') do
+      puts USAGE
+      exit
+    end
+
+    opts.on('-t', '--test', 'Run tests') do
+      options[:test] = true
+    end
+
+    opts.on('-s', '--setup', 'Interactive setup') do
+      options[:setup] = true
+    end
+
+    opts.on('--search QUERY', 'Search repos (used by fzf)') do |query|
+      options[:search] = query
+    end
+  end.parse!
+  options
+end
+
+def main
+  check_dependencies
+
+  options = parse_options
+
+  return run_tests if options[:test]
+  return setup if options[:setup]
+  return search_for_fzf(options[:search]) if options[:search]
+
+  ensure_config
+
+  repo_arg = ARGV.first
+  if repo_arg
+    clone_repo(repo_arg)
+  else
+    interactive_clone
+  end
+end
+
+def search_for_fzf(query)
+  return if query.nil? || query.strip.empty?
+
+  user = get_config('gclone.user')
+  org = get_config('gclone.org')
+
+  repos = search_repos(org, user, query)
+  puts repos.join("\n")
+end
+
+def check_dependencies
+  if run('which gh').empty?
+    puts %(Please install gh:
+      brew install gh
+      gh auth login
+    )
+    exit 1
+  end
+end
+
+def ensure_config
+  user = get_config('gclone.user')
+  if user.empty?
+    default_user = get_github_username
+    print "Your Github username [#{default_user}]: "
+    user = $stdin.gets.chomp
+    user = default_user if user.empty?
+    set_config('gclone.user', user)
+    puts "Set gclone.user = #{user}"
+    puts
+  end
+
+  org = get_config('gclone.org')
+  if org.empty?
+    print 'Github org to clone from: '
+    org = $stdin.gets.chomp
+    if org.empty?
+      puts 'Error: org is required'
+      exit 1
+    end
+    set_config('gclone.org', org)
+    puts "Set gclone.org = #{org}"
+    puts
+  end
+
+  user_dir = get_config('gclone.userdir')
+  if user_dir.empty?
+    default_user_dir = File.expand_path('~/dev')
+    print "Directory for your repos (github.com/#{user}/*) [#{default_user_dir}]: "
+    user_dir = $stdin.gets.chomp
+    user_dir = default_user_dir if user_dir.empty?
+    user_dir = File.expand_path(user_dir)
+    set_config('gclone.userdir', user_dir)
+    puts "Set gclone.userdir = #{user_dir}"
+    puts
+  end
+
+  org_dir = get_config('gclone.orgdir')
+  if org_dir.empty?
+    default_org_dir = File.expand_path('~/repos')
+    print "Directory for org repos [#{default_org_dir}]: "
+    org_dir = $stdin.gets.chomp
+    org_dir = default_org_dir if org_dir.empty?
+    org_dir = File.expand_path(org_dir)
+    set_config('gclone.orgdir', org_dir)
+    puts "Set gclone.orgdir = #{org_dir}"
+    puts
+  end
+
+  forks_dir = get_config('gclone.forks')
+  if forks_dir.empty?
+    default_forks = File.expand_path('~/dev/forks')
+    print "Directory for forks [#{default_forks}]: "
+    forks_dir = $stdin.gets.chomp
+    forks_dir = default_forks if forks_dir.empty?
+    forks_dir = File.expand_path(forks_dir)
+    set_config('gclone.forks', forks_dir)
+    puts "Set gclone.forks = #{forks_dir}"
+    puts
+  end
+end
+
+def setup
+  puts 'gclone setup'
+  puts '============'
+  puts
+
+  current_user = get_config('gclone.user')
+  default_user = current_user.empty? ? get_github_username : current_user
+  print "Your Github username [#{default_user}]: "
+  user = $stdin.gets.chomp
+  user = default_user if user.empty?
+  set_config('gclone.user', user)
+  puts "Set gclone.user = #{user}"
+  puts
+
+  current_org = get_config('gclone.org')
+  print "Github org to clone from#{current_org.empty? ? '' : " [#{current_org}]"}: "
+  org = $stdin.gets.chomp
+  org = current_org if org.empty? && !current_org.empty?
+  if org.empty?
+    puts 'Error: org is required'
+    exit 1
+  end
+  set_config('gclone.org', org)
+  puts "Set gclone.org = #{org}"
+  puts
+
+  current_user_dir = get_config('gclone.userdir')
+  default_user_dir = current_user_dir.empty? ? File.expand_path('~/dev') : current_user_dir
+  print "Directory for your repos (github.com/#{user}/*) [#{default_user_dir}]: "
+  user_dir = $stdin.gets.chomp
+  user_dir = default_user_dir if user_dir.empty?
+  user_dir = File.expand_path(user_dir)
+  set_config('gclone.userdir', user_dir)
+  puts "Set gclone.userdir = #{user_dir}"
+  puts
+
+  current_org_dir = get_config('gclone.orgdir')
+  default_org_dir = current_org_dir.empty? ? File.expand_path('~/repos') : current_org_dir
+  print "Directory for org repos [#{default_org_dir}]: "
+  org_dir = $stdin.gets.chomp
+  org_dir = default_org_dir if org_dir.empty?
+  org_dir = File.expand_path(org_dir)
+  set_config('gclone.orgdir', org_dir)
+  puts "Set gclone.orgdir = #{org_dir}"
+  puts
+
+  current_forks = get_config('gclone.forks')
+  default_forks = current_forks.empty? ? File.expand_path('~/dev/forks') : current_forks
+  print "Directory for forks [#{default_forks}]: "
+  forks_dir = $stdin.gets.chomp
+  forks_dir = default_forks if forks_dir.empty?
+  forks_dir = File.expand_path(forks_dir)
+  set_config('gclone.forks', forks_dir)
+  puts "Set gclone.forks = #{forks_dir}"
+  puts
+
+  puts 'Setup complete!'
+end
+
+def get_github_username
+  run('gh api user --jq .login')
+end
+
+def get_config(key)
+  run("git config --global #{key}")
+end
+
+def set_config(key, value)
+  run('git config --global', key, value)
+end
+
+def interactive_clone
+  user = get_config('gclone.user')
+  org = get_config('gclone.org')
+
+  if run('which fzf').empty?
+    puts %(fzf not found. Please install it:
+      brew install fzf
+    )
+    exit 1
+  end
+
+  # Use fzf with dynamic reloading on each keystroke
+  script_path = File.expand_path($PROGRAM_NAME)
+  reload_cmd = "#{script_path} --search {q}"
+
+  selection, status = Open3.capture2(
+    'fzf',
+    '--ansi',
+    '--disabled',
+    '--query', '',
+    '--prompt', "Search #{org}, #{user}: ",
+    '--header', 'Type to search, Enter to select',
+    '--bind', "change:reload:#{reload_cmd}",
+    '--bind', 'start:reload:echo "Type to search..."'
+  )
+
+  return unless status.success?
+
+  repo = selection.strip
+  return if repo.empty? || repo == 'Type to search...'
+
+  clone_repo(repo)
+end
+
+def search_repos(org, user, query)
+  debug("Searching repos for #{query}")
+
+  org_repos = run("gh search repos --owner=#{org} #{query} --limit 20 --json name --jq .[].name")
+              .split("\n").map(&:strip).reject(&:empty?)
+              .map { |r| "#{org}/#{r}" }
+
+  user_repos = run("gh search repos --owner=#{user} #{query} --limit 20 --json name --jq .[].name")
+               .split("\n").map(&:strip).reject(&:empty?)
+               .map { |r| "#{user}/#{r}" }
+
+  (org_repos + user_repos).sort.uniq
+end
+
+def clone_repo(repo_input)
+  user = get_config('gclone.user')
+  org = get_config('gclone.org')
+  user_dir = get_config('gclone.userdir')
+  org_dir = get_config('gclone.orgdir')
+  forks_dir = get_config('gclone.forks')
+
+  # Parse repo input - expects "owner/repo" format
+  unless repo_input.include?('/')
+    puts "Invalid format: #{repo_input}"
+    puts "Expected: owner/repo (e.g., #{org}/myrepo or #{user}/myrepo)"
+    exit 1
+  end
+  repo_owner, repo_name = repo_input.split('/', 2)
+
+  # Validate repo name and owner (security)
+  unless valid_repo_name?(repo_name)
+    puts "Invalid repo name: #{repo_name}"
+    exit 1
+  end
+  unless valid_github_username?(repo_owner)
+    puts "Invalid owner/org name: #{repo_owner}"
+    exit 1
+  end
+
+  # Determine target directory based on repo owner
+  target_base = if repo_owner.downcase == user.downcase
+                  user_dir      # User's personal repos -> ~/dev
+                elsif repo_owner.downcase == org.downcase
+                  org_dir       # Org repos -> ~/repos
+                else
+                  forks_dir     # Forks -> ~/dev/forks
+                end
+  target_dir = File.join(target_base, repo_name)
+
+  if Dir.exist?(target_dir)
+    puts "Directory already exists: #{target_dir}"
+    puts "cd #{target_dir}"
+    exit 0
+  end
+
+  # Ensure parent directory exists
+  FileUtils.mkdir_p(target_base) unless Dir.exist?(target_base)
+
+  puts "Cloning #{repo_owner}/#{repo_name} to #{target_dir}..."
+  clone_url = "https://github.com/#{repo_owner}/#{repo_name}.git"
+
+  output, status = Open3.capture2e('git', 'clone', clone_url, target_dir)
+  puts output
+
+  if status.success?
+    puts
+    puts "cd #{target_dir}"
+  else
+    puts 'Clone failed'
+    exit 1
+  end
+end
+
+def valid_repo_name?(name)
+  return false if name.nil? || name.empty?
+  return false if name.include?('..')
+  return false if name.start_with?('-')
+
+  # Github repo names: alphanumeric, hyphens, underscores, dots
+  name.match?(/\A[a-zA-Z0-9._-]+\z/)
+end
+
+def valid_github_username?(name)
+  return false if name.nil? || name.empty?
+  return false if name.start_with?('-')
+  return false if name.end_with?('-')
+  return false if name.include?('--')
+  return false if name.length > 39
+
+  # Github usernames: alphanumeric and single hyphens
+  name.match?(/\A[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\z/) || name.match?(/\A[a-zA-Z0-9]\z/)
+end
+
+def run(command, *args, page: nil)
+  debug("run: #{command} #{args.inspect}")
+  program, simple_args = command.split(' ', 2)
+  cmd_args = simple_args ? simple_args.split(' ') : []
+  cmd_args.concat(args)
+
+  output, _status = Open3.capture2(program, *cmd_args)
+  output.strip
+end
+
+def debug(*args)
+  return unless DEBUG
+
+  puts "[DEBUG] #{args.map(&:to_s).join(' ')}"
+end
+
+require 'fileutils'
+
+# ============================================================================
+# Tests
+# ============================================================================
+
+def run_tests
+  require 'minitest/autorun'
+
+  # Make top-level methods accessible to tests
+  gclone_methods = {
+    valid_repo_name: method(:valid_repo_name?),
+    valid_github_username: method(:valid_github_username?),
+    get_config: method(:get_config),
+    run_cmd: method(:run)
+  }
+
+  # Define test class
+  Object.const_set(:GcloneTest, Class.new(Minitest::Test) do
+    define_method(:setup) do
+      @m = gclone_methods
+    end
+
+    def test_valid_repo_name_accepts_normal_names
+      assert @m[:valid_repo_name].call('myrepo')
+      assert @m[:valid_repo_name].call('my-repo')
+      assert @m[:valid_repo_name].call('my_repo')
+      assert @m[:valid_repo_name].call('my.repo')
+      assert @m[:valid_repo_name].call('MyRepo123')
+    end
+
+    def test_valid_repo_name_rejects_invalid_names
+      refute @m[:valid_repo_name].call(nil)
+      refute @m[:valid_repo_name].call('')
+      refute @m[:valid_repo_name].call('..')
+      refute @m[:valid_repo_name].call('../etc')
+      refute @m[:valid_repo_name].call('-starting-with-dash')
+      refute @m[:valid_repo_name].call('has spaces')
+      refute @m[:valid_repo_name].call('has/slash')
+      refute @m[:valid_repo_name].call('has;semicolon')
+    end
+
+    def test_valid_github_username_accepts_valid_names
+      assert @m[:valid_github_username].call('octocat')
+      assert @m[:valid_github_username].call('my-org')
+      assert @m[:valid_github_username].call('a')
+      assert @m[:valid_github_username].call('a1')
+      assert @m[:valid_github_username].call('user-name-123')
+    end
+
+    def test_valid_github_username_rejects_invalid_names
+      refute @m[:valid_github_username].call(nil)
+      refute @m[:valid_github_username].call('')
+      refute @m[:valid_github_username].call('-starts-with-dash')
+      refute @m[:valid_github_username].call('ends-with-dash-')
+      refute @m[:valid_github_username].call('has--double-dash')
+      refute @m[:valid_github_username].call('has_underscore')
+      refute @m[:valid_github_username].call('has.dot')
+      refute @m[:valid_github_username].call('a' * 40) # too long
+    end
+
+    def test_get_config_returns_empty_for_unset
+      result = @m[:get_config].call('gclone.nonexistent.key.12345')
+      assert_equal '', result
+    end
+
+    def test_run_executes_command
+      result = @m[:run_cmd].call('echo hello')
+      assert_equal 'hello', result
+    end
+
+    def test_run_with_args
+      result = @m[:run_cmd].call('echo', 'hello', 'world')
+      assert_equal 'hello world', result
+    end
+  end)
+
+  # Tests will run automatically via minitest/autorun
+end
+
+main
