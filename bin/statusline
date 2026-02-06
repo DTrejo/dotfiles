@@ -155,6 +155,15 @@ rescue StandardError
   0
 end
 
+# Count commits ahead of main/master
+def get_commits_ahead_of_main(dir)
+  %w[main master].each do |base|
+    count, status = Open3.capture2('git', '-C', dir, '--no-optional-locks', 'rev-list', "#{base}..HEAD", '--count')
+    return count.strip.to_i if status.success?
+  end
+  0
+end
+
 # Count unpushed commits
 def get_unpushed_count(dir)
   # Check if there's an upstream branch
@@ -168,6 +177,7 @@ def get_unpushed_count(dir)
 end
 
 unpushed_count = git_branch.empty? ? 0 : get_unpushed_count(validated_dir)
+commits_ahead = git_branch.empty? ? 0 : get_commits_ahead_of_main(validated_dir)
 
 pr_info = git_branch.empty? ? nil : get_pr_state
 pr_state = pr_info&.dig(:state)
@@ -193,7 +203,11 @@ status += " #{relative_dir}"
 status += "\033[33m(#{git_branch})\033[0m" unless git_branch.empty?
 
 # Unpushed commits indicator
-status += " \033[32m✎#{unpushed_count}\033[0m" if unpushed_count > 0
+if unpushed_count > 0
+  status += " \033[32m✎#{unpushed_count}\033[0m"
+elsif commits_ahead > 0
+  status += " \033[32m✎≜\033[0m"
+end
 
 # PR state indicator (GitHub colors)
 comment_suffix = pr_unresolved > 0 ? " \033[33m🗨 #{pr_unresolved}\033[0m" : ""
