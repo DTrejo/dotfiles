@@ -164,14 +164,14 @@ def get_commits_ahead_of_main(dir)
   0
 end
 
-# Count unpushed commits
+# Count unpushed commits. Returns nil if no upstream tracking branch exists.
 def get_unpushed_count(dir)
   # Check if there's an upstream branch
   _, status = Open3.capture2('git', '-C', dir, 'rev-parse', '--abbrev-ref', '@{u}')
-  return 0 unless status.success?
+  return nil unless status.success?
 
   count, status = Open3.capture2('git', '-C', dir, '--no-optional-locks', 'rev-list', '@{u}..HEAD', '--count')
-  return 0 unless status.success?
+  return nil unless status.success?
 
   count.strip.to_i
 end
@@ -203,7 +203,10 @@ status += " #{relative_dir}"
 status += "\033[33m(#{git_branch})\033[0m" unless git_branch.empty?
 
 # Unpushed commits indicator
-if unpushed_count > 0
+if unpushed_count.nil? && commits_ahead > 0
+  # No upstream tracking branch: all commits ahead of main are unpushed
+  status += " \033[32m✎#{commits_ahead}\033[0m"
+elsif unpushed_count && unpushed_count > 0
   status += " \033[32m✎#{unpushed_count}\033[0m"
 elsif commits_ahead > 0
   status += " \033[32m✎≜\033[0m"
