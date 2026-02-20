@@ -9,10 +9,10 @@
 #   pr-cycle-times DTrejo --limit 50
 #   pr-cycle-times DTrejo --csv
 
-require "json"
-require "time"
-require "open3"
-require "csv"
+require 'json'
+require 'time'
+require 'open3'
+require 'csv'
 
 GRAPHQL_QUERY = <<~GRAPHQL
   query($searchQuery: String!, $first: Int!, $after: String) {
@@ -80,9 +80,9 @@ GRAPHQL_QUERY = <<~GRAPHQL
 GRAPHQL
 
 def run_gh(*args)
-  stdout, stderr, status = Open3.capture3("gh", *args)
-  if !status.success?
-    $stderr.puts "gh command failed: #{stderr}"
+  stdout, stderr, status = Open3.capture3('gh', *args)
+  unless status.success?
+    warn "gh command failed: #{stderr}"
     exit 1
   end
   stdout
@@ -91,38 +91,39 @@ end
 def run_graphql(query, variables)
   body = JSON.generate({ query: query, variables: variables })
   stdout, stderr, status = Open3.capture3(
-    "gh", "api", "-X", "POST", "graphql", "--input", "-",
+    'gh', 'api', '-X', 'POST', 'graphql', '--input', '-',
     stdin_data: body
   )
-  if !status.success?
-    $stderr.puts "GraphQL request failed:"
-    $stderr.puts stderr
+  unless status.success?
+    warn 'GraphQL request failed:'
+    warn stderr
     exit 1
   end
   stdout
 end
 
-def fetch_prs(handle, limit: nil)
+def fetch_prs(handle, limit: nil, org: nil)
   prs = []
   cursor = nil
   search_query = "is:pr author:#{handle} is:merged"
+  search_query += " user:#{org}" if org
 
   loop do
     page_size = limit ? [limit - prs.length, 25].min : 25
-    variables = { "searchQuery" => search_query, "first" => page_size }
-    variables["after"] = cursor if cursor
+    variables = { 'searchQuery' => search_query, 'first' => page_size }
+    variables['after'] = cursor if cursor
 
     result_json = run_graphql(GRAPHQL_QUERY, variables)
 
     result = JSON.parse(result_json)
 
-    if result["errors"]
-      $stderr.puts "GraphQL errors: #{result['errors'].map { |e| e['message'] }.join(', ')}"
+    if result['errors']
+      warn "GraphQL errors: #{result['errors'].map { |e| e['message'] }.join(', ')}"
       exit 1
     end
 
-    search = result.dig("data", "search")
-    nodes = search["nodes"] || []
+    search = result.dig('data', 'search')
+    nodes = search['nodes'] || []
     prs.concat(nodes)
 
     $stderr.print "\rFetched #{prs.length} PRs..."
@@ -132,12 +133,10 @@ def fetch_prs(handle, limit: nil)
       break
     end
 
-    page_info = search["pageInfo"]
-    if page_info["hasNextPage"]
-      cursor = page_info["endCursor"]
-    else
-      break
-    end
+    page_info = search['pageInfo']
+    break unless page_info['hasNextPage']
+
+    cursor = page_info['endCursor']
   end
 
   $stderr.puts
@@ -146,16 +145,18 @@ end
 
 def parse_time(val)
   return nil if val.nil? || val.empty?
+
   Time.parse(val)
 end
 
 def duration_minutes(from, to)
   return nil if from.nil? || to.nil?
+
   ((to - from) / 60.0).round(1)
 end
 
 def format_duration(minutes)
-  return "-" if minutes.nil?
+  return '-' if minutes.nil?
 
   negative = minutes < 0
   minutes = minutes.abs
@@ -178,38 +179,38 @@ def format_duration(minutes)
 end
 
 def compute_pr_metrics(pr, handle)
-  created_at = parse_time(pr["createdAt"])
-  merged_at = parse_time(pr["mergedAt"])
-  published_at = parse_time(pr["publishedAt"])
+  created_at = parse_time(pr['createdAt'])
+  merged_at = parse_time(pr['mergedAt'])
+  published_at = parse_time(pr['publishedAt'])
 
   first_commit_date = parse_time(
-    pr.dig("firstCommit", "nodes", 0, "commit", "authoredDate")
+    pr.dig('firstCommit', 'nodes', 0, 'commit', 'authoredDate')
   )
-  last_commit_date = parse_time(
-    pr.dig("lastCommit", "nodes", 0, "commit", "authoredDate")
+  parse_time(
+    pr.dig('lastCommit', 'nodes', 0, 'commit', 'authoredDate')
   )
 
-  timeline = pr.dig("timelineItems", "nodes") || []
+  timeline = pr.dig('timelineItems', 'nodes') || []
 
-  ready_for_review_event = timeline.find { |e| e["__typename"] == "ReadyForReviewEvent" }
-  ready_at = ready_for_review_event ? parse_time(ready_for_review_event["createdAt"]) : nil
+  ready_for_review_event = timeline.find { |e| e['__typename'] == 'ReadyForReviewEvent' }
+  ready_at = ready_for_review_event ? parse_time(ready_for_review_event['createdAt']) : nil
 
   # Reviews by others (not self-reviews)
-  reviews = timeline.select { |e|
-    e["__typename"] == "PullRequestReview" && e.dig("author", "login") != handle
-  }
+  reviews = timeline.select do |e|
+    e['__typename'] == 'PullRequestReview' && e.dig('author', 'login') != handle
+  end
 
-  first_review = reviews.min_by { |r| r["createdAt"] }
-  first_review_at = first_review ? parse_time(first_review["createdAt"]) : nil
+  first_review = reviews.min_by { |r| r['createdAt'] }
+  first_review_at = first_review ? parse_time(first_review['createdAt']) : nil
 
-  approved_reviews = reviews.select { |r| r["state"] == "APPROVED" }
-  first_approval = approved_reviews.min_by { |r| r["createdAt"] }
-  first_approval_at = first_approval ? parse_time(first_approval["createdAt"]) : nil
+  approved_reviews = reviews.select { |r| r['state'] == 'APPROVED' }
+  first_approval = approved_reviews.min_by { |r| r['createdAt'] }
+  first_approval_at = first_approval ? parse_time(first_approval['createdAt']) : nil
 
   # Determine "ready" time: when the PR was ready for review
   # For draft PRs, this is when ReadyForReviewEvent fired
   # For non-draft PRs, this is publishedAt (== createdAt usually)
-  was_draft = ready_at || pr["isDraft"]
+  was_draft = ready_at || pr['isDraft']
   pr_ready_at = if was_draft && ready_at
                   ready_at
                 else
@@ -217,20 +218,18 @@ def compute_pr_metrics(pr, handle)
                 end
 
   # Draft time: only when PR was created as draft
-  draft_minutes = if was_draft && ready_at
-                    duration_minutes(created_at, ready_at)
-                  end
+  draft_minutes = (duration_minutes(created_at, ready_at) if was_draft && ready_at)
 
   {
-    url: pr["url"],
-    repo: pr.dig("repository", "nameWithOwner"),
-    title: pr["title"],
-    created_at: pr["createdAt"],
-    merged_at: pr["mergedAt"],
-    additions: pr["additions"],
-    deletions: pr["deletions"],
-    changed_files: pr["changedFiles"],
-    size: (pr["additions"] || 0) + (pr["deletions"] || 0),
+    url: pr['url'],
+    repo: pr.dig('repository', 'nameWithOwner'),
+    title: pr['title'],
+    created_at: pr['createdAt'],
+    merged_at: pr['mergedAt'],
+    additions: pr['additions'],
+    deletions: pr['deletions'],
+    changed_files: pr['changedFiles'],
+    size: (pr['additions'] || 0) + (pr['deletions'] || 0),
     was_draft: !!was_draft,
     first_commit_to_pr_opened: duration_minutes(first_commit_date, created_at),
     draft_time: draft_minutes,
@@ -238,7 +237,7 @@ def compute_pr_metrics(pr, handle)
     pr_ready_to_first_approval: duration_minutes(pr_ready_at, first_approval_at),
     first_approval_to_merged: duration_minutes(first_approval_at, merged_at),
     pr_opened_to_merged: duration_minutes(created_at, merged_at),
-    first_commit_to_merged: duration_minutes(first_commit_date, merged_at),
+    first_commit_to_merged: duration_minutes(first_commit_date, merged_at)
   }
 end
 
@@ -265,69 +264,66 @@ def compute_aggregate(metrics_list, key)
     count: values.length,
     median: percentile(values, 50),
     p75: percentile(values, 75),
-    p90: percentile(values, 90),
+    p90: percentile(values, 90)
   }
 end
 
 def print_table(aggregates, total_prs, draft_count, avg_size, date_range)
   metric_labels = {
-    first_commit_to_pr_opened: "First commit -> PR opened",
-    draft_time: "Draft time",
-    pr_ready_to_first_review: "PR ready -> First review",
-    pr_ready_to_first_approval: "PR ready -> First approval",
-    first_approval_to_merged: "First approval -> Merged",
-    pr_opened_to_merged: "PR opened -> Merged",
-    first_commit_to_merged: "First commit -> Merged",
+    first_commit_to_pr_opened: 'First commit -> PR opened',
+    draft_time: 'Draft time',
+    pr_ready_to_first_review: 'PR ready -> First review',
+    pr_ready_to_first_approval: 'PR ready -> First approval',
+    first_approval_to_merged: 'First approval -> Merged',
+    pr_opened_to_merged: 'PR opened -> Merged',
+    first_commit_to_merged: 'First commit -> Merged'
   }
 
   label_width = metric_labels.values.map(&:length).max + 2
   col_width = 12
 
-  header = "%-#{label_width}s %#{col_width}s %#{col_width}s %#{col_width}s %8s" % ["Metric", "Median", "P75", "P90", "N"]
+  header = format("%-#{label_width}s %#{col_width}s %#{col_width}s %#{col_width}s %8s", 'Metric', 'Median', 'P75',
+                  'P90', 'N')
   puts header
-  puts "-" * header.length
+  puts '-' * header.length
 
   metric_labels.each do |key, label|
     agg = aggregates[key]
     next if agg[:count] == 0
 
-    row = "%-#{label_width}s %#{col_width}s %#{col_width}s %#{col_width}s %8d" % [
-      label,
-      format_duration(agg[:median]),
-      format_duration(agg[:p75]),
-      format_duration(agg[:p90]),
-      agg[:count],
-    ]
+    row = format("%-#{label_width}s %#{col_width}s %#{col_width}s %#{col_width}s %8d", label,
+                 format_duration(agg[:median]), format_duration(agg[:p75]), format_duration(agg[:p90]), agg[:count])
     puts row
   end
 
-  puts "-" * header.length
+  puts '-' * header.length
   puts "Total PRs: #{total_prs} | Drafted: #{draft_count} | Avg size: #{avg_size} lines | Range: #{date_range}"
 end
 
-def print_csv(aggregates, metrics_list, total_prs, draft_count, avg_size, date_range)
+def print_csv(aggregates, _metrics_list, total_prs, draft_count, avg_size, date_range)
   metric_labels = {
-    first_commit_to_pr_opened: "First commit -> PR opened",
-    draft_time: "Draft time",
-    pr_ready_to_first_review: "PR ready -> First review",
-    pr_ready_to_first_approval: "PR ready -> First approval",
-    first_approval_to_merged: "First approval -> Merged",
-    pr_opened_to_merged: "PR opened -> Merged",
-    first_commit_to_merged: "First commit -> Merged",
+    first_commit_to_pr_opened: 'First commit -> PR opened',
+    draft_time: 'Draft time',
+    pr_ready_to_first_review: 'PR ready -> First review',
+    pr_ready_to_first_approval: 'PR ready -> First approval',
+    first_approval_to_merged: 'First approval -> Merged',
+    pr_opened_to_merged: 'PR opened -> Merged',
+    first_commit_to_merged: 'First commit -> Merged'
   }
 
   csv_string = CSV.generate do |csv|
-    csv << ["Metric", "Median", "P75", "P90", "N"]
+    csv << %w[Metric Median P75 P90 N]
     metric_labels.each do |key, label|
       agg = aggregates[key]
       next if agg[:count] == 0
+
       csv << [label, format_duration(agg[:median]), format_duration(agg[:p75]), format_duration(agg[:p90]), agg[:count]]
     end
     csv << []
-    csv << ["Total PRs", total_prs]
-    csv << ["Drafted", draft_count]
-    csv << ["Avg size", avg_size]
-    csv << ["Date range", date_range]
+    csv << ['Total PRs', total_prs]
+    csv << ['Drafted', draft_count]
+    csv << ['Avg size', avg_size]
+    csv << ['Date range', date_range]
   end
 
   puts csv_string
@@ -342,6 +338,7 @@ USAGE = <<~HELP
     USER              GitHub username (default: current gh user)
 
   Options:
+    --org ORG         Scope to a GitHub org (e.g. --org your_org)
     --limit N         Max number of PRs to fetch (default: all)
     --csv             Output CSV instead of a table
     --help, -h        Show this help message
@@ -349,6 +346,7 @@ USAGE = <<~HELP
   Examples:
     pr-cycle-times
     pr-cycle-times DTrejo
+    pr-cycle-times DTrejo --org your_org
     pr-cycle-times DTrejo --limit 50
     pr-cycle-times DTrejo --csv
 HELP
@@ -356,31 +354,37 @@ HELP
 def main
   args = ARGV.dup
 
-  if args.delete("--help") || args.delete("-h")
+  if args.delete('--help') || args.delete('-h')
     puts USAGE
     exit 0
   end
 
-  csv_mode = args.delete("--csv")
+  csv_mode = args.delete('--csv')
   limit = nil
+  org = nil
 
-  if (idx = args.index("--limit"))
+  if (idx = args.index('--limit'))
     limit = args[idx + 1]&.to_i
     args.delete_at(idx + 1)
     args.delete_at(idx)
   end
 
-  handle = args.first
-  if handle.nil? || handle.start_with?("-")
-    handle = run_gh("api", "user", "--jq", ".login").strip
+  if (idx = args.index('--org'))
+    org = args[idx + 1]
+    args.delete_at(idx + 1)
+    args.delete_at(idx)
   end
 
-  $stderr.puts "Fetching merged PRs for #{handle}..."
+  handle = args.first
+  handle = run_gh('api', 'user', '--jq', '.login').strip if handle.nil? || handle.start_with?('-')
 
-  prs = fetch_prs(handle, limit: limit)
+  label = org ? "#{handle} (org: #{org})" : handle
+  warn "Fetching merged PRs for #{label}..."
+
+  prs = fetch_prs(handle, limit: limit, org: org)
 
   if prs.empty?
-    $stderr.puts "No merged PRs found for #{handle}."
+    warn "No merged PRs found for #{handle}."
     exit 0
   end
 
@@ -410,7 +414,7 @@ def main
                elsif dates.length == 1
                  dates.first[0..9]
                else
-                 "unknown"
+                 'unknown'
                end
 
   if csv_mode
@@ -426,19 +430,19 @@ def main
     generated_at: Time.now.iso8601,
     total_prs: total_prs,
     date_range: date_range,
-    aggregates: aggregates.transform_values { |v|
+    aggregates: aggregates.transform_values do |v|
       {
         count: v[:count],
         median_minutes: v[:median]&.round(1),
         p75_minutes: v[:p75]&.round(1),
-        p90_minutes: v[:p90]&.round(1),
+        p90_minutes: v[:p90]&.round(1)
       }
-    },
-    prs: metrics_list,
+    end,
+    prs: metrics_list
   }
 
   File.write(json_file, JSON.pretty_generate(json_data))
-  $stderr.puts "Wrote per-PR data to #{json_file}"
+  warn "Wrote per-PR data to #{json_file}"
 end
 
 main
