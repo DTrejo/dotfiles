@@ -1,0 +1,444 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# pr-cycle-times - Compute PR cycle time metrics for a GitHub user
+#
+# Usage:
+#   pr-cycle-times                       # defaults to current gh user
+#   pr-cycle-times DTrejo
+#   pr-cycle-times DTrejo --limit 50
+#   pr-cycle-times DTrejo --csv
+
+require "json"
+require "time"
+require "open3"
+require "csv"
+
+GRAPHQL_QUERY = <<~GRAPHQL
+  query($searchQuery: String!, $first: Int!, $after: String) {
+    search(query: $searchQuery, type: ISSUE, first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        ... on PullRequest {
+          url
+          title
+          createdAt
+          mergedAt
+          publishedAt
+          isDraft
+          additions
+          deletions
+          changedFiles
+          repository {
+            nameWithOwner
+          }
+          firstCommit: commits(first: 1) {
+            nodes {
+              commit {
+                authoredDate
+              }
+            }
+          }
+          lastCommit: commits(last: 1) {
+            nodes {
+              commit {
+                authoredDate
+              }
+            }
+          }
+          timelineItems(first: 100, itemTypes: [READY_FOR_REVIEW_EVENT, CONVERT_TO_DRAFT_EVENT, PULL_REQUEST_REVIEW, REVIEW_REQUESTED_EVENT, MERGED_EVENT]) {
+            nodes {
+              __typename
+              ... on ReadyForReviewEvent {
+                createdAt
+              }
+              ... on ConvertToDraftEvent {
+                createdAt
+              }
+              ... on PullRequestReview {
+                createdAt
+                state
+                author {
+                  login
+                }
+              }
+              ... on ReviewRequestedEvent {
+                createdAt
+              }
+              ... on MergedEvent {
+                createdAt
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+GRAPHQL
+
+def run_gh(*args)
+  stdout, stderr, status = Open3.capture3("gh", *args)
+  if !status.success?
+    $stderr.puts "gh command failed: #{stderr}"
+    exit 1
+  end
+  stdout
+end
+
+def run_graphql(query, variables)
+  body = JSON.generate({ query: query, variables: variables })
+  stdout, stderr, status = Open3.capture3(
+    "gh", "api", "-X", "POST", "graphql", "--input", "-",
+    stdin_data: body
+  )
+  if !status.success?
+    $stderr.puts "GraphQL request failed:"
+    $stderr.puts stderr
+    exit 1
+  end
+  stdout
+end
+
+def fetch_prs(handle, limit: nil)
+  prs = []
+  cursor = nil
+  search_query = "is:pr author:#{handle} is:merged"
+
+  loop do
+    page_size = limit ? [limit - prs.length, 25].min : 25
+    variables = { "searchQuery" => search_query, "first" => page_size }
+    variables["after"] = cursor if cursor
+
+    result_json = run_graphql(GRAPHQL_QUERY, variables)
+
+    result = JSON.parse(result_json)
+
+    if result["errors"]
+      $stderr.puts "GraphQL errors: #{result['errors'].map { |e| e['message'] }.join(', ')}"
+      exit 1
+    end
+
+    search = result.dig("data", "search")
+    nodes = search["nodes"] || []
+    prs.concat(nodes)
+
+    $stderr.print "\rFetched #{prs.length} PRs..."
+
+    if limit && prs.length >= limit
+      prs = prs.first(limit)
+      break
+    end
+
+    page_info = search["pageInfo"]
+    if page_info["hasNextPage"]
+      cursor = page_info["endCursor"]
+    else
+      break
+    end
+  end
+
+  $stderr.puts
+  prs
+end
+
+def parse_time(val)
+  return nil if val.nil? || val.empty?
+  Time.parse(val)
+end
+
+def duration_minutes(from, to)
+  return nil if from.nil? || to.nil?
+  ((to - from) / 60.0).round(1)
+end
+
+def format_duration(minutes)
+  return "-" if minutes.nil?
+
+  negative = minutes < 0
+  minutes = minutes.abs
+  total_minutes = minutes.round
+
+  if total_minutes < 60
+    s = "#{total_minutes}m"
+  elsif total_minutes < 1440
+    h = total_minutes / 60
+    m = total_minutes % 60
+    s = m > 0 ? "#{h}h #{m}m" : "#{h}h"
+  else
+    d = total_minutes / 1440
+    remaining = total_minutes % 1440
+    h = remaining / 60
+    s = h > 0 ? "#{d}d #{h}h" : "#{d}d"
+  end
+
+  negative ? "-#{s}" : s
+end
+
+def compute_pr_metrics(pr, handle)
+  created_at = parse_time(pr["createdAt"])
+  merged_at = parse_time(pr["mergedAt"])
+  published_at = parse_time(pr["publishedAt"])
+
+  first_commit_date = parse_time(
+    pr.dig("firstCommit", "nodes", 0, "commit", "authoredDate")
+  )
+  last_commit_date = parse_time(
+    pr.dig("lastCommit", "nodes", 0, "commit", "authoredDate")
+  )
+
+  timeline = pr.dig("timelineItems", "nodes") || []
+
+  ready_for_review_event = timeline.find { |e| e["__typename"] == "ReadyForReviewEvent" }
+  ready_at = ready_for_review_event ? parse_time(ready_for_review_event["createdAt"]) : nil
+
+  # Reviews by others (not self-reviews)
+  reviews = timeline.select { |e|
+    e["__typename"] == "PullRequestReview" && e.dig("author", "login") != handle
+  }
+
+  first_review = reviews.min_by { |r| r["createdAt"] }
+  first_review_at = first_review ? parse_time(first_review["createdAt"]) : nil
+
+  approved_reviews = reviews.select { |r| r["state"] == "APPROVED" }
+  first_approval = approved_reviews.min_by { |r| r["createdAt"] }
+  first_approval_at = first_approval ? parse_time(first_approval["createdAt"]) : nil
+
+  # Determine "ready" time: when the PR was ready for review
+  # For draft PRs, this is when ReadyForReviewEvent fired
+  # For non-draft PRs, this is publishedAt (== createdAt usually)
+  was_draft = ready_at || pr["isDraft"]
+  pr_ready_at = if was_draft && ready_at
+                  ready_at
+                else
+                  published_at || created_at
+                end
+
+  # Draft time: only when PR was created as draft
+  draft_minutes = if was_draft && ready_at
+                    duration_minutes(created_at, ready_at)
+                  end
+
+  {
+    url: pr["url"],
+    repo: pr.dig("repository", "nameWithOwner"),
+    title: pr["title"],
+    created_at: pr["createdAt"],
+    merged_at: pr["mergedAt"],
+    additions: pr["additions"],
+    deletions: pr["deletions"],
+    changed_files: pr["changedFiles"],
+    size: (pr["additions"] || 0) + (pr["deletions"] || 0),
+    was_draft: !!was_draft,
+    first_commit_to_pr_opened: duration_minutes(first_commit_date, created_at),
+    draft_time: draft_minutes,
+    pr_ready_to_first_review: duration_minutes(pr_ready_at, first_review_at),
+    pr_ready_to_first_approval: duration_minutes(pr_ready_at, first_approval_at),
+    first_approval_to_merged: duration_minutes(first_approval_at, merged_at),
+    pr_opened_to_merged: duration_minutes(created_at, merged_at),
+    first_commit_to_merged: duration_minutes(first_commit_date, merged_at),
+  }
+end
+
+def percentile(sorted_values, p)
+  return nil if sorted_values.empty?
+  return sorted_values[0] if sorted_values.length == 1
+
+  k = (p / 100.0) * (sorted_values.length - 1)
+  f = k.floor
+  c = k.ceil
+
+  if f == c
+    sorted_values[f]
+  else
+    sorted_values[f] + (k - f) * (sorted_values[c] - sorted_values[f])
+  end
+end
+
+def compute_aggregate(metrics_list, key)
+  values = metrics_list.filter_map { |m| m[key] }.sort
+  return { count: 0, median: nil, p75: nil, p90: nil } if values.empty?
+
+  {
+    count: values.length,
+    median: percentile(values, 50),
+    p75: percentile(values, 75),
+    p90: percentile(values, 90),
+  }
+end
+
+def print_table(aggregates, total_prs, draft_count, avg_size, date_range)
+  metric_labels = {
+    first_commit_to_pr_opened: "First commit -> PR opened",
+    draft_time: "Draft time",
+    pr_ready_to_first_review: "PR ready -> First review",
+    pr_ready_to_first_approval: "PR ready -> First approval",
+    first_approval_to_merged: "First approval -> Merged",
+    pr_opened_to_merged: "PR opened -> Merged",
+    first_commit_to_merged: "First commit -> Merged",
+  }
+
+  label_width = metric_labels.values.map(&:length).max + 2
+  col_width = 12
+
+  header = "%-#{label_width}s %#{col_width}s %#{col_width}s %#{col_width}s %8s" % ["Metric", "Median", "P75", "P90", "N"]
+  puts header
+  puts "-" * header.length
+
+  metric_labels.each do |key, label|
+    agg = aggregates[key]
+    next if agg[:count] == 0
+
+    row = "%-#{label_width}s %#{col_width}s %#{col_width}s %#{col_width}s %8d" % [
+      label,
+      format_duration(agg[:median]),
+      format_duration(agg[:p75]),
+      format_duration(agg[:p90]),
+      agg[:count],
+    ]
+    puts row
+  end
+
+  puts "-" * header.length
+  puts "Total PRs: #{total_prs} | Drafted: #{draft_count} | Avg size: #{avg_size} lines | Range: #{date_range}"
+end
+
+def print_csv(aggregates, metrics_list, total_prs, draft_count, avg_size, date_range)
+  metric_labels = {
+    first_commit_to_pr_opened: "First commit -> PR opened",
+    draft_time: "Draft time",
+    pr_ready_to_first_review: "PR ready -> First review",
+    pr_ready_to_first_approval: "PR ready -> First approval",
+    first_approval_to_merged: "First approval -> Merged",
+    pr_opened_to_merged: "PR opened -> Merged",
+    first_commit_to_merged: "First commit -> Merged",
+  }
+
+  csv_string = CSV.generate do |csv|
+    csv << ["Metric", "Median", "P75", "P90", "N"]
+    metric_labels.each do |key, label|
+      agg = aggregates[key]
+      next if agg[:count] == 0
+      csv << [label, format_duration(agg[:median]), format_duration(agg[:p75]), format_duration(agg[:p90]), agg[:count]]
+    end
+    csv << []
+    csv << ["Total PRs", total_prs]
+    csv << ["Drafted", draft_count]
+    csv << ["Avg size", avg_size]
+    csv << ["Date range", date_range]
+  end
+
+  puts csv_string
+end
+
+USAGE = <<~HELP
+  Usage: pr-cycle-times [USER] [OPTIONS]
+
+  Compute PR cycle time metrics for a GitHub user.
+
+  Arguments:
+    USER              GitHub username (default: current gh user)
+
+  Options:
+    --limit N         Max number of PRs to fetch (default: all)
+    --csv             Output CSV instead of a table
+    --help, -h        Show this help message
+
+  Examples:
+    pr-cycle-times
+    pr-cycle-times DTrejo
+    pr-cycle-times DTrejo --limit 50
+    pr-cycle-times DTrejo --csv
+HELP
+
+def main
+  args = ARGV.dup
+
+  if args.delete("--help") || args.delete("-h")
+    puts USAGE
+    exit 0
+  end
+
+  csv_mode = args.delete("--csv")
+  limit = nil
+
+  if (idx = args.index("--limit"))
+    limit = args[idx + 1]&.to_i
+    args.delete_at(idx + 1)
+    args.delete_at(idx)
+  end
+
+  handle = args.first
+  if handle.nil? || handle.start_with?("-")
+    handle = run_gh("api", "user", "--jq", ".login").strip
+  end
+
+  $stderr.puts "Fetching merged PRs for #{handle}..."
+
+  prs = fetch_prs(handle, limit: limit)
+
+  if prs.empty?
+    $stderr.puts "No merged PRs found for #{handle}."
+    exit 0
+  end
+
+  metrics_list = prs.map { |pr| compute_pr_metrics(pr, handle) }
+
+  metric_keys = %i[
+    first_commit_to_pr_opened
+    draft_time
+    pr_ready_to_first_review
+    pr_ready_to_first_approval
+    first_approval_to_merged
+    pr_opened_to_merged
+    first_commit_to_merged
+  ]
+
+  aggregates = metric_keys.each_with_object({}) do |key, hash|
+    hash[key] = compute_aggregate(metrics_list, key)
+  end
+
+  total_prs = metrics_list.length
+  draft_count = metrics_list.count { |m| m[:was_draft] }
+  avg_size = (metrics_list.sum { |m| m[:size] } / total_prs.to_f).round
+
+  dates = metrics_list.filter_map { |m| m[:merged_at] }.sort
+  date_range = if dates.length >= 2
+                 "#{dates.first[0..9]} to #{dates.last[0..9]}"
+               elsif dates.length == 1
+                 dates.first[0..9]
+               else
+                 "unknown"
+               end
+
+  if csv_mode
+    print_csv(aggregates, metrics_list, total_prs, draft_count, avg_size, date_range)
+  else
+    print_table(aggregates, total_prs, draft_count, avg_size, date_range)
+  end
+
+  # Write JSON output
+  json_file = "pr-cycle-times-#{handle}.json"
+  json_data = {
+    handle: handle,
+    generated_at: Time.now.iso8601,
+    total_prs: total_prs,
+    date_range: date_range,
+    aggregates: aggregates.transform_values { |v|
+      {
+        count: v[:count],
+        median_minutes: v[:median]&.round(1),
+        p75_minutes: v[:p75]&.round(1),
+        p90_minutes: v[:p90]&.round(1),
+      }
+    },
+    prs: metrics_list,
+  }
+
+  File.write(json_file, JSON.pretty_generate(json_data))
+  $stderr.puts "Wrote per-PR data to #{json_file}"
+end
+
+main
