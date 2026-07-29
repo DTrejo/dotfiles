@@ -1,0 +1,407 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# TODO: Add debug mode (DEBUG env var pattern with debug() helper)
+# See: ../docs/cli-best-practices.md for best practices
+#
+# Future work: add usage, limit option.
+# Script to fetch and format PR comments from GitHub
+# Uses GitHub CLI (gh) to fetch comments, reviews, and inline comments
+
+require "json"
+require "open3"
+require "optparse"
+require "uri"
+
+# Module for handling GitHub PR comment fetching and formatting
+module PRComments
+  # Default configuration
+  PR_SEARCH_PARAMS = {
+    state: "merged",
+    sort: "updated",
+    direction: "desc",
+    limit: 10,
+    search: "-author:dependabot -author:app/dependabot -author:dependency-bot",
+  }.freeze
+
+  class GitHubError < StandardError; end
+  class JSONParseError < StandardError; end
+
+  class << self
+    def run
+      options = parse_options
+      @repository_name = options[:repository] || detect_repository
+      @pr_number = options[:pr_number] || detect_pr_number
+      @todo_only = options[:todo]
+
+      pr_data = fetch_pr_comments
+      format_comments_for_all_prs(pr_data)
+    rescue GitHubError, JSONParseError => e
+      warn "Error: #{e.message}"
+      exit 1
+    rescue StandardError => e
+      warn "Unexpected error: #{e.message}"
+      exit 1
+    end
+
+    def parse_options
+      options = {
+        todo: true  # Default to showing only unresolved comments
+      }
+
+      # Save original ARGV to handle positional arguments
+      original_argv = ARGV.dup
+
+      OptionParser.new do |opts|
+        opts.banner = "Usage: #{$0} [options] [repository] [pr_number]"
+
+        opts.on("--pr NUMBER", Integer, "PR number to fetch comments for") do |pr|
+          options[:pr_number] = pr
+        end
+
+        opts.on("--todo", "Only show unresolved comments (default)") do
+          options[:todo] = true
+        end
+
+        opts.on("--all", "Show all comments (including resolved)") do
+          options[:todo] = false
+        end
+
+        opts.on("-h", "--help", "Show this help message") do
+          puts opts
+          exit
+        end
+      end.parse!
+
+      # Handle remaining positional arguments in order
+      # First non-flag arg is repository, second is PR number
+      remaining_args = original_argv.reject { |arg| arg.start_with?("-") }
+      remaining_args.each_with_index do |arg, index|
+        if index == 0 && options[:repository].nil?
+          # First positional argument is repository
+          options[:repository] = arg
+        elsif index == 1 && options[:pr_number].nil?
+          # Second positional argument is PR number (if numeric)
+          if arg.match?(/^\d+$/)
+            options[:pr_number] = arg.to_i
+          else
+            raise ArgumentError, "PR number must be numeric, got: #{arg}"
+          end
+        end
+      end
+
+      options
+    end
+
+    # Auto-detect repository from gh CLI
+    def detect_repository
+      output, status = Open3.capture2('gh', 'repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner')
+      if status.success? && !output.strip.empty?
+        output.strip
+      else
+        nil
+      end
+    end
+
+    # Auto-detect current PR number from gh CLI
+    def detect_pr_number
+      output, status = Open3.capture2('gh', 'pr', 'view', '--json', 'number', '-q', '.number')
+      if status.success? && !output.strip.empty?
+        output.strip.to_i
+      else
+        nil
+      end
+    end
+
+    private
+
+    def fetch_pr_comments
+      prs = fetch_pull_requests
+      prs.map do |pr|
+        review_comments = fetch_review_comments(pr)
+        inline_comments = fetch_inline_comments(pr)
+
+        # Filter unresolved comments if --todo flag is set
+        if @todo_only
+          review_comments = filter_unresolved_review_comments(review_comments)
+          inline_comments = filter_unresolved_inline_comments(inline_comments)
+        end
+
+        {
+          "number" => pr["number"],
+          "title" => pr["title"],
+          "author" => pr["user"],
+          "review_comments" => review_comments,
+          "inline_comments" => inline_comments
+        }
+      end
+    end
+
+    def gh_api(path, params = {})
+      query = params.empty? ? "" : "?#{URI.encode_www_form(params)}"
+
+      puts "gh api #{path}#{query}"
+      stdout, stderr, status = Open3.capture3(
+        "gh", "api",
+        "-H", "Accept: application/vnd.github+json",
+        "-H", "X-GitHub-Api-Version: 2022-11-28",
+        "#{path}#{query}"
+      )
+
+      raise GitHubError, "PRComments.gh_api: #{stderr}" if !status.success?
+
+      JSON.parse(stdout)
+    rescue JSON::ParserError => e
+      raise JSONParseError, "PRComments.gh_api: Failed to parse JSON: #{e.message}"
+    end
+
+    def fetch_pull_requests
+      if @pr_number
+        # Fetch a specific PR
+        [gh_api("/repos/#{@repository_name}/pulls/#{@pr_number}")]
+      else
+        # Fetch multiple PRs using search params
+        gh_api("/repos/#{@repository_name}/pulls", PR_SEARCH_PARAMS)
+      end
+    end
+
+    def fetch_review_comments(pr)
+      reviews = gh_api("/repos/#{@repository_name}/pulls/#{pr['number']}/reviews")
+      reviews.map do |review|
+        {
+          "author" => review["user"]["login"],
+          "body" => review["body"],
+          "state" => review["state"],
+          "submitted_at" => review["submitted_at"]
+        }
+      end
+    end
+
+    def fetch_inline_comments(pr)
+      if @todo_only
+        # Use GraphQL to get resolved status
+        fetch_inline_comments_graphql(pr)
+      else
+        # Use REST API for all comments
+        comments = gh_api("/repos/#{@repository_name}/pulls/#{pr['number']}/comments")
+        comments.map do |comment|
+          format_inline_comment(comment, resolved: nil)
+        end
+      end
+    end
+
+    def fetch_inline_comments_graphql(pr)
+      # Validate repository name format
+      parts = @repository_name.split("/")
+      unless parts.length == 2 && parts.all? { |p| !p.nil? && !p.empty? }
+        raise ArgumentError, "Invalid repository format: expected 'owner/repo', got '#{@repository_name}'"
+      end
+      owner, repo = parts
+
+      query = <<~GRAPHQL
+        query($owner: String!, $repo: String!, $prNumber: Int!) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $prNumber) {
+              reviewThreads(first: 100) {
+                pageInfo {
+                  hasNextPage
+                }
+                nodes {
+                  isResolved
+                  comments(first: 50) {
+                    pageInfo {
+                      hasNextPage
+                    }
+                    nodes {
+                      id
+                      body
+                      author {
+                        login
+                      }
+                      path
+                      line
+                      startLine
+                      diffHunk
+                      position
+                      originalLine
+                      originalStartLine
+                      originalPosition
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      GRAPHQL
+
+      variables = {
+        owner: owner,
+        repo: repo,
+        prNumber: pr["number"]
+      }
+
+      result = gh_graphql(query, variables)
+
+      # Check for GraphQL errors
+      if result["errors"]
+        error_message = result["errors"].map { |e| e["message"] }.join("; ")
+        raise GitHubError, "GraphQL error: #{error_message}"
+      end
+
+      pull_request = result.dig("data", "repository", "pullRequest")
+      unless pull_request
+        raise GitHubError, "Pull request not found"
+      end
+
+      threads = pull_request.dig("reviewThreads", "nodes") || []
+      page_info = pull_request.dig("reviewThreads", "pageInfo") || {}
+
+      # Warn if pagination limits reached
+      if page_info["hasNextPage"]
+        warn "Warning: PR has more than 100 review threads. Some comments may be missing."
+      end
+
+      # Flatten threads into individual comments with resolved status
+      comments = []
+      threads.each do |thread|
+        is_resolved = thread["isResolved"]
+        thread_comments = thread.dig("comments", "nodes") || []
+        thread_page_info = thread.dig("comments", "pageInfo") || {}
+
+        # Warn if thread has more comments than limit
+        if thread_page_info["hasNextPage"]
+          warn "Warning: Review thread has more than 50 comments. Some comments may be missing."
+        end
+
+        thread_comments.each do |comment|
+          comments << format_inline_comment_from_graphql(comment, resolved: is_resolved)
+        end
+      end
+
+      comments
+    end
+
+    def format_inline_comment(comment, resolved:)
+      {
+        "author" => comment["user"]&.dig("login") || comment.dig("author", "login"),
+        "body" => comment["body"],
+        "path" => comment["path"],
+        "line" => comment["line"] || comment["original_line"] || comment["originalLine"],
+        "side" => comment["side"],
+        "start_line" => comment["start_line"] || comment["startLine"],
+        "original_start_line" => comment["original_start_line"] || comment["originalStartLine"],
+        "start_side" => comment["start_side"] || comment["startSide"],
+        "position" => comment["position"],
+        "original_position" => comment["original_position"] || comment["originalPosition"],
+        "diff_hunk" => comment["diff_hunk"] || comment["diffHunk"],
+        "resolved" => resolved
+      }
+    end
+
+    def format_inline_comment_from_graphql(comment, resolved:)
+      {
+        "author" => comment.dig("author", "login"),
+        "body" => comment["body"],
+        "path" => comment["path"],
+        "line" => comment["line"] || comment["originalLine"],
+        "side" => nil,  # Not available in GraphQL API
+        "start_line" => comment["startLine"],
+        "original_start_line" => comment["originalStartLine"],
+        "start_side" => nil,  # Not available in GraphQL API
+        "position" => comment["position"],
+        "original_position" => comment["originalPosition"],
+        "diff_hunk" => comment["diffHunk"],
+        "resolved" => resolved
+      }
+    end
+
+    def gh_graphql(query, variables = {})
+      cmd = ["gh", "api", "graphql"]
+      variables.each do |key, value|
+        # GitHub CLI expects strings and integers as plain strings, not JSON-encoded
+        # Only complex types (arrays, hashes) need JSON encoding
+        if value.is_a?(String) || value.is_a?(Integer)
+          value_str = value.to_s
+        else
+          value_str = value.to_json
+        end
+        cmd += ["-F", "#{key}=#{value_str}"]
+      end
+      cmd += ["-f", "query=#{query}"]
+
+      puts cmd.join(" ")
+      stdout, stderr, status = Open3.capture3(*cmd)
+      raise GitHubError, "PRComments.gh_graphql: #{stderr}" if !status.success?
+
+      JSON.parse(stdout)
+    rescue JSON::ParserError => e
+      raise JSONParseError, "PRComments.gh_graphql: Failed to parse JSON: #{e.message}"
+    end
+
+    def filter_unresolved_review_comments(comments)
+      # Filter out approved reviews, keep others (CHANGES_REQUESTED, COMMENTED, etc.)
+      comments.reject { |comment| comment["state"] == "APPROVED" }
+    end
+
+    def filter_unresolved_inline_comments(comments)
+      # Filter out resolved comments (isResolved == true)
+      comments.reject { |comment| comment["resolved"] == true }
+    end
+
+    def format_comments_for_all_prs(prs_data)
+      return puts "No PRs found matching the criteria." if prs_data.empty?
+
+      prs_data.each { |pr_data| format_pr(pr_data) }
+    end
+
+    def format_pr(data)
+      author = data.dig("author", "login")
+      puts "# PR ##{data['number']}: #{data['title']}"
+      puts "Author: #{author}\n\n"
+
+      review_comments = data["review_comments"]
+      puts "## Review Comments" if review_comments.any?
+      review_comments.each { |comment| print_review_comment(comment) }
+
+      inline_comments = data["inline_comments"]
+      puts "## Inline Comments" if inline_comments.any?
+      inline_comments.each { |comment| print_inline_comment(comment) }
+      puts "---"
+    end
+
+    def print_review_comment(comment)
+      return if comment["body"].to_s.strip.empty?
+
+      puts "Author: #{comment['author']}"
+      puts "State: #{comment['state']}"
+      puts "Date: #{comment['submitted_at']}"
+      puts "Comment: #{comment['body']}"
+      puts "---"
+    end
+
+    def print_inline_comment(comment)
+      return if comment["body"].to_s.strip.empty?
+
+      puts "Author: #{comment['author']}"
+      puts "File: #{comment['path']}"
+
+      if comment["start_line"] && comment["line"] && comment["start_line"] != comment["line"]
+        puts "Lines: #{comment['start_line']}-#{comment['line']}"
+      else
+        puts "Line: #{comment['line']}"
+      end
+
+      if comment["diff_hunk"]
+        puts "```diff"
+        puts comment["diff_hunk"].lines.map { |line| "    #{line}" }.join
+        puts "```"
+      end
+
+      puts "\nComment: #{comment['body']}"
+      puts "---"
+    end
+  end
+end
+
+PRComments.run if __FILE__ == $PROGRAM_NAME
