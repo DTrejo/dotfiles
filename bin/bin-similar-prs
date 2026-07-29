@@ -1,0 +1,85 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# TODO: Add comprehensive USAGE documentation with "What does it do?", "How does it work?", and examples
+# TODO: Add dependency checking (gh CLI)
+# See: ../docs/cli-best-practices.md for best practices and template
+
+require 'json'
+require 'time'
+require 'open3'
+
+def run(command, *args, log_error: false)
+  program, simple_args = command.split(' ', 2)
+  args_array = simple_args ? simple_args.split(' ') : []
+  puts "#{program} #{args_array.join(' ')} #{args.join(' ')}"
+  output, status = Open3.capture2(program, *args_array, *args)
+  out = output.strip
+  puts(out) if log_error && status != 0
+  out
+end
+
+def main
+  if ARGV.empty? || ARGV.include?("--help") || ARGV.include?("-h")
+    puts %(
+Searches and lists similar PRs in markdown along with number, title,
+  url, changed files, mergedAt, and original raw JSON.
+
+Usage:
+  similar-prs your search here
+  similar-prs score factor
+  similar-prs remove score factor
+  similar-prs --help
+  similar-prs -h
+
+Example output (markdown):
+  ## 2. [add DD cost score factor](github pr link) (3d ago)
+  ### Files changed:
+  - [...]
+)
+    exit 1
+  end
+
+  search_terms = ARGV.join(" ")
+
+  # This could be a lot faster if we only looked at commits, but this is better
+  # because we can use the link to get even more info from the PR, like comments.
+  pr_list_json = run(
+    'gh pr list',
+    '--state', 'merged',
+    '--search', "#{search_terms} in:title sort:merged-desc",
+    '--json', 'number,title,url,files,mergedAt',
+    '--limit', '10'
+  )
+
+  pr_list = JSON.parse(pr_list_json, symbolize_names: true)
+  _example_pr_list = %(
+    [{:files=>
+     [{:additions=>2, :deletions=>0, :path=>"app/models/score_factor.rb"},
+      {:additions=>5, :deletions=>0, :path=>"lib/copy.rb"},
+      {:additions=>1, :deletions=>1, :path=>"lib/data_sources/logging.rb"},
+      {:additions=>41, :deletions=>0, :path=>"lib/score_factors/logging_cost_per_request_acceptable.rb"},
+      {:additions=>1, :deletions=>0, :path=>"lib/scores.rb"},
+      {:additions=>3, :deletions=>3, :path=>"spec/lib/data_sources/logging_spec.rb"},
+      {:additions=>90,
+       :deletions=>0,
+       :path=>"spec/lib/score_factors/logging_cost_per_request_acceptable_spec.rb"}],
+    :mergedAt=>"2025-02-19T15:08:05Z",
+    :number=>3524,
+    :title=>"add DD cost score factor",
+    :url=>"pr link"},
+  )
+
+  pr_list.each_with_index do |pr, i|
+    days_ago = ((Time.now - Time.parse(pr[:mergedAt])) / 86400).round
+    puts "## #{i + 1}. [#{pr[:title]}](#{pr[:url]}) (#{days_ago}d ago)"
+    puts "### Files changed:"
+    pr[:files].each do |file|
+      puts "- #{file[:path]} (+#{file[:additions]}, -#{file[:deletions]})"
+    end
+    puts "\nJSON: #{pr.to_json}"
+    puts "\n---\n"
+  end
+end
+
+main
