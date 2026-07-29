@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# Run rspec on files edited on this branch or not committed
+files = `#{File.dirname(__FILE__)}/files-edited`.split("\n")
+specs = files.select { |file| file.match?(/_spec\.rb$/i) && File.exist?(file) }
+
+args = ARGV.join(' ')
+command = "bin/rspec #{specs.join(' ')} #{args}"
+puts command
+exec command
