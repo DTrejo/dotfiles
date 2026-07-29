@@ -40,8 +40,24 @@ claudeTask = nil
 rotationFrame = 0
 animationTimer = nil
 hasUnread = false
+lastBadgeState = false
+ignoreNextActivation = false
 
 local asterisks = {"✱", "✲", "✳", "✴"}
+
+-- Settings (persisted across reloads)
+local SETTING_AUTO_FOCUS = "claudeStatusAutoFocus"
+
+local function isAutoFocusEnabled()
+  local val = hs.settings.get(SETTING_AUTO_FOCUS)
+  if val == nil then return false end  -- Default: off
+  return val
+end
+
+local function setAutoFocus(enabled)
+  hs.settings.set(SETTING_AUTO_FOCUS, enabled)
+  print("[Claude Status] Auto-focus " .. (enabled and "enabled" or "disabled"))
+end
 
 local function focusITerm()
   hs.application.launchOrFocus("iTerm")
@@ -79,19 +95,43 @@ local function hideIndicator()
   hasUnread = false
 end
 
-local function checkClaudeStatus()
-  -- Skip check if iTerm2 is frontmost (user is looking at it)
-  local frontApp = hs.application.frontmostApplication()
-  if frontApp and frontApp:name() == "iTerm2" then
-    print("[Claude Status] Check: iTerm2 frontmost, hiding")
-    hideIndicator()
-    return
-  end
+local function buildMenu()
+  -- Focus iTerm2 when menu opens, but don't hide indicator
+  ignoreNextActivation = true
+  focusITerm()
+  hs.timer.doAfter(0.5, function() ignoreNextActivation = false end)
 
+  return {
+    { title = "-" },
+    {
+      title = "Auto-focus on notification",
+      checked = isAutoFocusEnabled(),
+      fn = function() setAutoFocus(not isAutoFocusEnabled()) end
+    },
+    { title = "-" },
+    { title = "Reload Config", fn = function() hs.reload() end }
+  }
+end
+
+local function checkClaudeStatus()
   local statusPath = "/Users/" .. os.getenv("USER") .. "/dev/dotfiles/bin/hammerspoon-claude-status"
   claudeTask = hs.task.new("/bin/zsh", function(exitCode, stdOut, stdErr)
+    local hasBadge = (exitCode == 0)
     local badge = (stdOut or ""):gsub("%s+", "")
-    if exitCode == 0 then
+
+    -- Auto-focus on badge transition (none -> some)
+    if hasBadge and not lastBadgeState and isAutoFocusEnabled() then
+      print("[Claude Status] New badge detected, auto-focusing iTerm2")
+      focusITerm()
+    end
+    lastBadgeState = hasBadge
+
+    -- Update indicator based on current state
+    local frontApp = hs.application.frontmostApplication()
+    if frontApp and frontApp:name() == "iTerm2" then
+      print("[Claude Status] Check: iTerm2 frontmost, hiding")
+      hideIndicator()
+    elseif hasBadge then
       print("[Claude Status] Check: badge=" .. badge)
       showIndicator()
     else
@@ -102,23 +142,27 @@ local function checkClaudeStatus()
   claudeTask:start()
 end
 
--- Clear indicator when iTerm2 gains focus
+-- Clear indicator when iTerm2 gains focus (unless triggered by menu click)
 appWatcher = hs.application.watcher.new(function(appName, eventType, app)
   if appName == "iTerm2" and eventType == hs.application.watcher.activated then
+    if ignoreNextActivation then
+      ignoreNextActivation = false
+      return
+    end
     hideIndicator()
   end
 end)
 appWatcher:start()
 
--- Setup
-claudeMenu:setClickCallback(focusITerm)
-claudeMenu:setTooltip("Claude Status - Click to focus iTerm2")
+-- Setup menu bar with dropdown
+claudeMenu:setMenu(buildMenu)
+claudeMenu:setTooltip("Claude Status - Click for options")
 
 -- Check every 5 seconds
 claudeTimer = hs.timer.doEvery(5, checkClaudeStatus)
 checkClaudeStatus()
 
-print("✓ Claude Status indicator loaded")
+print("✓ Claude Status indicator loaded (auto-focus: " .. (isAutoFocusEnabled() and "on" or "off") .. ")")
 ```
 
 ### 3. Reload Hammerspoon
