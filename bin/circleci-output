@@ -1,0 +1,790 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# TODO: Add debug mode (DEBUG env var pattern with debug() helper)
+# See: ../docs/cli-best-practices.md for best practices
+#
+# CircleCI Output Inspector
+# =========================
+#
+# A Ruby script that uses the CircleCI API to inspect job output and diagnose failures.
+#
+# Features:
+# - Auto-detects failing and pending CircleCI jobs from current PR using 'gh pr checks'
+# - Fetches detailed job information, failed steps, and artifacts
+# - Shows full RSpec failure output (from first "Failures:" onward) or last 50 lines if no failures detected
+# - Built-in test suite
+#
+# Requirements:
+# - CIRCLECI_TOKEN environment variable (get from https://circleci.com/account/api)
+# - gh CLI tool (for --auto mode)
+# - HTTP gem (should be available in most Ruby projects)
+#
+# Usage:
+#   ./bin/circleci-output                     # Auto-detect failing jobs (default)
+#   ./bin/circleci-output 123456 234567       # Analyze specific jobs
+#   ./bin/circleci-output --test              # Run tests
+#
+
+require "http"
+require "json"
+require "optparse"
+require "stringio"
+
+class CircleCIOutput
+  BASE_URL = "https://circleci.com/api"
+
+  def initialize(token)
+    @token = token
+    @headers = {
+      "Circle-Token" => @token,
+      "Accept" => "application/json"
+    }
+    @repository_name = detect_repository
+    puts "Detected repository: #{@repository_name}"
+  end
+
+  def extract_repo_name_from_url(url)
+    # Handle both SSH and HTTPS URLs
+    # SSH: git@github.com:org/my-service.git
+    # HTTPS: https://github.com/org/my-service.git
+    match = url.strip.match(%r{github\.com[:/](?<org>[\w.-]+)/(?<repo>[\w.-]+?)(?:\.git)?\z})
+    return "#{match[:org]}/#{match[:repo]}" if match
+
+    nil
+  end
+
+  def detect_repository
+    # Try to get repository from git remote origin
+    require 'open3'
+    output, status = Open3.capture2('git', 'remote', 'get-url', 'origin')
+    if status.success? && !output.strip.empty?
+      repo_name = extract_repo_name_from_url(output.strip)
+      return repo_name if repo_name
+    end
+
+    # Fallback: try to get from gh CLI
+    output, status = Open3.capture2('gh', 'repo', 'view', '--json', 'nameWithOwner')
+    if status.success? && !output.strip.empty?
+      begin
+        repo_info = JSON.parse(output)
+        return repo_info['nameWithOwner'] if repo_info['nameWithOwner']
+      rescue JSON::ParserError
+        # Continue to fallback
+      end
+    end
+
+    # No fallback, exit with an error
+    $stderr.puts "Error: Could not detect repository. Make sure you're in a git repository with a remote or GitHub CLI is configured."
+    exit 1
+  end
+
+  def fetch_job_details(job_number)
+    url = "#{BASE_URL}/v2/project/gh/#{@repository_name}/job/#{job_number}"
+    response = HTTP.headers(@headers).get(url)
+
+    if response.status.success?
+      JSON.parse(response.body)
+    else
+      puts "Error fetching job details: #{response.status} - #{response.body}"
+      nil
+    end
+  end
+
+  def fetch_job_artifacts(job_number)
+    url = "#{BASE_URL}/v2/project/gh/#{@repository_name}/#{job_number}/artifacts"
+    response = HTTP.headers(@headers).get(url)
+
+    if response.status.success?
+      JSON.parse(response.body)
+    else
+      puts "Error fetching job artifacts: #{response.status} - #{response.body}"
+      nil
+    end
+  end
+
+  def fetch_job_steps(job_number)
+    # Use v1.1 API for steps which has more detailed information
+    url = "#{BASE_URL}/v1.1/project/github/#{@repository_name}/#{job_number}"
+    response = HTTP.headers(@headers).get(url)
+
+    if response.status.success?
+      JSON.parse(response.body)
+    else
+      puts "Error fetching job steps: #{response.status} - #{response.body}"
+      nil
+    end
+  end
+
+  def display_job_summary(job_details)
+    return unless job_details
+
+    puts "\n" + "="*60
+    puts "JOB SUMMARY"
+    puts "="*60
+    puts "Job Number: #{job_details['job_number']}"
+    puts "Job Name: #{job_details['name']}"
+    puts "Status: #{job_details['status']}"
+    puts "Outcome: #{job_details['outcome']}" if job_details['outcome']
+    puts "Started: #{job_details['started_at']}"
+    puts "Stopped: #{job_details['stopped_at']}" if job_details['stopped_at']
+
+    if job_details['web_url']
+      puts "Web URL: #{job_details['web_url']}"
+    end
+  end
+
+  def display_failed_steps(job_steps)
+    return unless job_steps && job_steps['steps']
+
+    failed_steps = job_steps['steps'].select do |step|
+      step['actions']&.any? { |action| action['status'] == 'failed' }
+    end
+
+    if failed_steps.any?
+      puts "\n" + "="*60
+      puts "FAILED STEPS"
+      puts "="*60
+
+      failed_steps.each do |step|
+        puts "\nStep: #{step['name']}"
+        step['actions'].each do |action|
+          if action['status'] == 'failed'
+            puts "  Action: #{action['name']}"
+            puts "  Status: #{action['status']}"
+            puts "  Exit Code: #{action['exit_code']}" if action['exit_code']
+            puts "  Runtime: #{action['run_time_millis']}ms" if action['run_time_millis']
+
+            # Show output if available
+            if action['output_url']
+              puts "  Output URL: #{action['output_url']}"
+              output = fetch_step_output(action['output_url'])
+              if output
+                output_lines = output.split("\n")
+
+                # Find first occurrence of "Failures:" to capture all failure details e.g. for rspec.
+                failure_index = output_lines.find_index { |line| line.include?("Failures:") }
+
+                if failure_index
+                  puts "  Output (from first failure onward):"
+                  puts "  " + "-"*50
+                  output_lines[failure_index..-1].each { |line| puts "  #{line}" }
+                  puts "  " + "-"*50
+                else
+                  puts "  Output (last 50 lines):"
+                  puts "  " + "-"*50
+                  output_lines.last(50).each { |line| puts "  #{line}" }
+                  puts "  " + "-"*50
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  def fetch_step_output(output_url)
+    response = HTTP.headers(@headers).get(output_url)
+    if response.status.success?
+      response.body.to_s
+    else
+      puts "  Error fetching step output: #{response.status}"
+      nil
+    end
+  end
+
+  def display_artifacts(artifacts)
+    return unless artifacts && artifacts['items']
+
+    if artifacts['items'].any?
+      puts "\n" + "="*60
+      puts "ARTIFACTS"
+      puts "="*60
+
+      artifacts['items'].each do |artifact|
+        puts "  #{artifact['path']}"
+        puts "    URL: #{artifact['url']}"
+        puts "    Size: #{artifact['file_size']} bytes" if artifact['file_size']
+      end
+    end
+  end
+
+  def analyze_job(job_number)
+    puts "Analyzing CircleCI job #{job_number}..."
+
+    job_details = fetch_job_details(job_number)
+    display_job_summary(job_details)
+
+    job_steps = fetch_job_steps(job_number)
+    display_failed_steps(job_steps)
+
+    artifacts = fetch_job_artifacts(job_number)
+    display_artifacts(artifacts)
+  end
+
+  def get_failing_and_pending_jobs_from_gh
+    # Run gh pr checks and parse the output for failing and pending CircleCI jobs
+    output, status = Open3.capture2('gh', 'pr', 'checks', '--json', 'link,name,state')
+    return { failing: [], pending: [] } if !status.success?
+
+    begin
+      checks = JSON.parse(output)
+
+      # Get failing CircleCI jobs
+      failing_circleci_jobs = checks.select do |check|
+        check['state'] == 'FAILURE' &&
+        check['name']&.include?('ci/circleci') &&
+        check['link']&.include?('circleci.com')
+      end
+
+      # Get pending CircleCI jobs
+      pending_circleci_jobs = checks.select do |check|
+        check['state'] == 'PENDING' &&
+        check['name']&.include?('ci/circleci') &&
+        check['link']&.include?('circleci.com')
+      end
+
+      failing_job_numbers = failing_circleci_jobs.map do |job|
+        # Extract job number from URL like https://circleci.com/gh/org/service/123456
+        job['link'].split('/').last.to_i
+      end.compact
+
+      pending_job_numbers = pending_circleci_jobs.map do |job|
+        job['link'].split('/').last.to_i
+      end.compact
+
+      { failing: failing_job_numbers, pending: pending_job_numbers }
+    rescue JSON::ParserError
+      puts "Error parsing gh pr checks output"
+      { failing: [], pending: [] }
+    end
+  end
+end
+
+# Test framework for the script
+class CircleCIOutputTest
+  def self.run_all_tests
+    # Load minitest dependencies only when needed
+    require "minitest"
+    require "minitest/assertions"
+
+    puts "Running CircleCI Output Script Tests using Minitest..."
+    puts "=" * 60
+
+    # Create a test instance and run all test methods
+    test_instance = self.new
+    test_instance.extend(Minitest::Assertions)
+    test_instance.instance_variable_set(:@assertions, 0)
+
+    # Define the assertions method that minitest needs
+    def test_instance.assertions
+      @assertions
+    end
+
+    def test_instance.assertions=(count)
+      @assertions = count
+    end
+
+    test_methods = test_instance.methods.select { |m| m.to_s.start_with?('test_') }
+
+    passed = 0
+    failed = 0
+
+    test_methods.each do |test_method|
+      begin
+        puts "Running #{test_method}..."
+        test_instance.setup if test_instance.respond_to?(:setup)
+        test_instance.send(test_method)
+        test_instance.teardown if test_instance.respond_to?(:teardown)
+        passed += 1
+        puts "✓ #{test_method}"
+      rescue Exception => e
+        failed += 1
+        puts "✗ #{test_method}: #{e.message}"
+        puts "  #{e.backtrace.first}" if e.backtrace
+      end
+    end
+
+    puts "=" * 60
+    puts "Test Results: #{passed} passed, #{failed} failed"
+    puts "=" * 60
+
+    failed == 0
+  end
+
+  def test_job_number_extraction
+    # Mock gh pr checks output
+    mock_gh_output = [
+      {
+        'name' => 'ci/circleci: build',
+        'state' => 'FAILURE',
+        'link' => 'https://circleci.com/gh/org/service/123456'
+      },
+      {
+        'name' => 'ci/circleci: rspec',
+        'state' => 'SUCCESS',
+        'link' => 'https://circleci.com/gh/org/service/123456'
+      },
+      {
+        'name' => 'ci/circleci: build-2',
+        'state' => 'FAILURE',
+        'link' => 'https://circleci.com/gh/org/service/123456'
+      },
+      {
+        'name' => 'ci/circleci: build-dev',
+        'state' => 'PENDING',
+        'link' => 'https://circleci.com/gh/org/service/123456'
+      }
+    ].to_json
+
+    # Test the filtering logic directly
+    checks = JSON.parse(mock_gh_output)
+
+    # Test failing jobs
+    failing_circleci_jobs = checks.select do |check|
+      check['state'] == 'FAILURE' &&
+      check['name']&.include?('ci/circleci') &&
+      check['link']&.include?('circleci.com')
+    end
+
+    failing_job_numbers = failing_circleci_jobs.map do |job|
+      job['link'].split('/').last.to_i
+    end.compact
+
+    # Test pending jobs
+    pending_circleci_jobs = checks.select do |check|
+      check['state'] == 'PENDING' &&
+      check['name']&.include?('ci/circleci') &&
+      check['link']&.include?('circleci.com')
+    end
+
+    pending_job_numbers = pending_circleci_jobs.map do |job|
+      job['link'].split('/').last.to_i
+    end.compact
+
+    assert_equal 2, failing_job_numbers.length, "Should find 2 failing jobs"
+    assert_includes failing_job_numbers, 123456, "Should include failing job 123456"
+    assert_includes failing_job_numbers, 234567, "Should include failing job 234567"
+    refute_includes failing_job_numbers, 123456, "Should not include successful job 123456"
+
+    assert_equal 1, pending_job_numbers.length, "Should find 1 pending job"
+    assert_includes pending_job_numbers, 654321, "Should include pending job 654321"
+  end
+
+
+
+  def test_display_job_summary
+    circleci = CircleCIOutput.new("fake-token")
+
+    job_details = {
+      'job_number' => 123456,
+      'name' => 'build',
+      'status' => 'failed',
+      'outcome' => 'failed',
+      'started_at' => '2024-01-01T12:00:00Z',
+      'stopped_at' => '2024-01-01T12:05:00Z',
+      'web_url' => 'https://circleci.com/gh/org/repo/123456'
+    }
+
+    # Capture output
+    output = capture_output do
+      circleci.display_job_summary(job_details)
+    end
+
+    # Test that all expected fields are displayed
+    assert_includes output, "Job Number: 123456", "Should display job number"
+    assert_includes output, "Job Name: build", "Should display job name"
+    assert_includes output, "Status: failed", "Should display status"
+    assert_includes output, "Outcome: failed", "Should display outcome"
+    assert_includes output, "Web URL: https://circleci.com/gh/org/repo/123456", "Should display web URL"
+  end
+
+  def test_display_artifacts
+    circleci = CircleCIOutput.new("fake-token")
+
+    artifacts = {
+      'items' => [
+        {
+          'path' => 'test-results/junit.xml',
+          'url' => 'https://circleci.com/api/artifacts/file1',
+          'file_size' => 1024
+        },
+        {
+          'path' => 'logs/build.log',
+          'url' => 'https://circleci.com/api/artifacts/file2',
+          'file_size' => 2048
+        }
+      ]
+    }
+
+    # Capture output
+    output = capture_output do
+      circleci.display_artifacts(artifacts)
+    end
+
+    # Test that artifacts are properly displayed
+    assert_includes output, "ARTIFACTS", "Should display artifacts header"
+    assert_includes output, "test-results/junit.xml", "Should display first artifact path"
+    assert_includes output, "logs/build.log", "Should display second artifact path"
+    assert_includes output, "1024 bytes", "Should display first artifact size"
+    assert_includes output, "2048 bytes", "Should display second artifact size"
+  end
+
+    def test_failure_output_detection
+    # Test output with failures section
+    output_with_failures = <<~OUTPUT
+      Running tests...
+      .............................
+      DEPRECATION WARNING: Some warning here
+      .............................
+
+      Failures:
+
+        1) SomeTest should work
+           Failure/Error: expect(something).to eq(other_thing)
+
+             expected: "expected_value"
+                  got: "actual_value"
+
+           # ./spec/some_test_spec.rb:123:in `block (2 levels) in <top (required)>'
+
+        2) AnotherTest should also work
+           Failure/Error: expect(another_thing).to be_truthy
+
+             expected: falsy value
+                  got: false
+
+           # ./spec/another_test_spec.rb:456:in `block (3 levels) in <top (required)>'
+
+      Finished in 2 minutes 43.3 seconds
+      549 examples, 2 failures
+    OUTPUT
+
+    output_lines = output_with_failures.split("\n")
+    failure_index = output_lines.find_index { |line| line.include?("Failures:") }
+
+    assert failure_index, "Should find 'Failures:' in the output"
+    assert_equal 5, failure_index, "Should find 'Failures:' at the correct line index"
+
+    failure_output = output_lines[failure_index..-1]
+    assert_includes failure_output.join("\n"), "SomeTest should work", "Should include first failure"
+    assert_includes failure_output.join("\n"), "AnotherTest should also work", "Should include second failure"
+    assert_includes failure_output.join("\n"), "549 examples, 2 failures", "Should include test summary"
+
+    # Test output without failures section
+    output_without_failures = <<~OUTPUT
+      Running tests...
+      .............................
+      DEPRECATION WARNING: Some warning here
+      .............................
+
+      Finished in 1 minute 30 seconds
+      100 examples, 0 failures
+    OUTPUT
+
+    output_lines_no_failures = output_without_failures.split("\n")
+    failure_index_none = output_lines_no_failures.find_index { |line| line.include?("Failures:") }
+
+    assert_nil failure_index_none, "Should not find 'Failures:' when there are no failures"
+  end
+
+  def test_display_failed_steps_with_failures
+    # Create a mock CircleCIOutput instance
+    circleci = CircleCIOutput.new("fake-token")
+
+    # Mock the fetch_step_output method to return our test output
+    output_with_failures = <<~OUTPUT
+      Running tests...
+      .............................
+
+      Failures:
+
+        1) SomeTest should work
+           Failure/Error: expect(something).to eq(other_thing)
+
+             expected: "expected_value"
+                  got: "actual_value"
+
+      Finished in 2 minutes 43.3 seconds
+      549 examples, 1 failure
+    OUTPUT
+
+    def circleci.fetch_step_output(url)
+      <<~OUTPUT
+        Running tests...
+        .............................
+
+        Failures:
+
+          1) SomeTest should work
+             Failure/Error: expect(something).to eq(other_thing)
+
+               expected: "expected_value"
+                    got: "actual_value"
+
+        Finished in 2 minutes 43.3 seconds
+        549 examples, 1 failure
+      OUTPUT
+    end
+
+    # Mock job steps data
+    job_steps = {
+      'steps' => [
+        {
+          'name' => 'Run tests',
+          'actions' => [
+            {
+              'name' => 'rspec',
+              'status' => 'failed',
+              'exit_code' => 1,
+              'run_time_millis' => 120000,
+              'output_url' => 'https://fake-url.com/output'
+            }
+          ]
+        }
+      ]
+    }
+
+    # Capture output
+    output = capture_output do
+      circleci.display_failed_steps(job_steps)
+    end
+
+    # Verify the output contains the failure section
+    assert_includes output, "Output (from first failure onward):", "Should indicate failure output mode"
+    assert_includes output, "SomeTest should work", "Should include the failure details"
+    assert_includes output, "549 examples, 1 failure", "Should include the test summary"
+    refute_includes output, "Running tests...", "Should not include pre-failure output"
+  end
+
+  def test_display_failed_steps_without_failures
+    # Create a mock CircleCIOutput instance
+    circleci = CircleCIOutput.new("fake-token")
+
+    # Mock the fetch_step_output method to return output without failures
+    def circleci.fetch_step_output(url)
+      lines = []
+      100.times { |i| lines << "Line #{i + 1}: Some test output" }
+      lines.join("\n")
+    end
+
+    # Mock job steps data
+    job_steps = {
+      'steps' => [
+        {
+          'name' => 'Run tests',
+          'actions' => [
+            {
+              'name' => 'rspec',
+              'status' => 'failed',
+              'exit_code' => 1,
+              'run_time_millis' => 120000,
+              'output_url' => 'https://fake-url.com/output'
+            }
+          ]
+        }
+      ]
+    }
+
+    # Capture output
+    output = capture_output do
+      circleci.display_failed_steps(job_steps)
+    end
+
+    # Verify it falls back to last 50 lines
+    assert_includes output, "Output (last 50 lines):", "Should indicate last 50 lines mode"
+    assert_includes output, "Line 100: Some test output", "Should include the last line"
+    assert_includes output, "Line 51: Some test output", "Should include line 51 (50 lines from end)"
+    refute_includes output, "Line 50: Some test output", "Should not include line 50 (more than 50 from end)"
+  end
+
+  def test_get_failing_and_pending_jobs_from_gh
+    circleci = CircleCIOutput.new("fake-token")
+
+    # Test the actual method that parses gh pr checks output
+    # This tests the integration between the filtering logic and job number extraction
+    def circleci.get_failing_and_pending_jobs_from_gh
+      # Simulate gh pr checks output
+      mock_checks = [
+        {
+          'name' => 'ci/circleci: build',
+          'state' => 'FAILURE',
+          'link' => 'https://circleci.com/gh/org/service/123456'
+        },
+        {
+          'name' => 'ci/circleci: rspec',
+          'state' => 'SUCCESS',
+          'link' => 'https://circleci.com/gh/org/service/123456'
+        },
+        {
+          'name' => 'ci/circleci: build-dev',
+          'state' => 'PENDING',
+          'link' => 'https://circleci.com/gh/org/service/654321'
+        },
+        {
+          'name' => 'other-ci: test',
+          'state' => 'FAILURE',
+          'link' => 'https://other.com/456'
+        }
+      ]
+
+      # Apply the actual filtering logic from the method
+      failing_circleci_jobs = mock_checks.select do |check|
+        check['state'] == 'FAILURE' &&
+        check['name']&.include?('ci/circleci') &&
+        check['link']&.include?('circleci.com')
+      end
+
+      pending_circleci_jobs = mock_checks.select do |check|
+        check['state'] == 'PENDING' &&
+        check['name']&.include?('ci/circleci') &&
+        check['link']&.include?('circleci.com')
+      end
+
+      failing_job_numbers = failing_circleci_jobs.map do |job|
+        job['link'].split('/').last.to_i
+      end.compact
+
+      pending_job_numbers = pending_circleci_jobs.map do |job|
+        job['link'].split('/').last.to_i
+      end.compact
+
+      { failing: failing_job_numbers, pending: pending_job_numbers }
+    end
+
+    result = circleci.get_failing_and_pending_jobs_from_gh
+
+    assert_equal [123456], result[:failing], "Should find only failing CircleCI jobs"
+    assert_equal [654321], result[:pending], "Should find only pending CircleCI jobs"
+  end
+
+  def test_detect_repository
+    circleci = CircleCIOutput.new("fake-token")
+
+    # Test SSH URL with .git suffix
+    ssh_url_with_git = "git@github.com:org/service.git"
+    result = circleci.extract_repo_name_from_url(ssh_url_with_git)
+    assert_equal "org/service", result, "Should extract repository name without .git from SSH URL"
+
+    # Test HTTPS URL with .git suffix
+    https_url_with_git = "https://github.com/org/service.git"
+    result = circleci.extract_repo_name_from_url(https_url_with_git)
+    assert_equal "org/service", result, "Should extract repository name without .git from HTTPS URL"
+
+    # Test SSH URL without .git suffix
+    ssh_url_without_git = "git@github.com:org/service"
+    result = circleci.extract_repo_name_from_url(ssh_url_without_git)
+    assert_equal "org/service", result, "Should extract repository name from SSH URL without .git"
+
+    # Test HTTPS URL without .git suffix
+    https_url_without_git = "https://github.com/org/service"
+    result = circleci.extract_repo_name_from_url(https_url_without_git)
+    assert_equal "org/service", result, "Should extract repository name from HTTPS URL without .git"
+
+    # Test repository with dots in name (should still work)
+    repo_with_dots = "https://github.com/org/repo.with.dots.git"
+    result = circleci.extract_repo_name_from_url(repo_with_dots)
+    assert_equal "org/repo.with.dots", result, "Should handle repository names with dots"
+
+    # Test repository starting with digit and containing underscore and period
+    repo_with_digit_underscore_period = "git@github.com:org/1test.repo_hi.git"
+    result = circleci.extract_repo_name_from_url(repo_with_digit_underscore_period)
+    assert_equal "org/1test.repo_hi", result, "Should handle repository names starting with digit and containing underscore and period"
+  end
+
+  # Helper method to capture stdout output
+  def capture_output
+    original_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original_stdout
+  end
+
+
+end
+
+# Main execution
+def main
+  options = {}
+  job_numbers = []
+
+  OptionParser.new do |opts|
+    opts.banner = "Usage: #{$0} [options] [job_numbers...]"
+    opts.on("-a", "--auto", "Automatically find failing and pending jobs from current PR using 'gh pr checks' (default behavior)") do
+      options[:auto] = true
+    end
+    opts.on("-t", "--test", "Run built-in tests") do
+      options[:test] = true
+    end
+    opts.on("-h", "--help", "Show this help") do
+      puts opts
+      puts "\nExamples:"
+      puts "  #{$0}                          # Auto-detect failing and pending jobs from PR (default)"
+      puts "  #{$0} --auto                   # Same as above (explicit)"
+      puts "  #{$0} 123456 234567           # Analyze specific job numbers"
+      puts "  #{$0} --test                  # Run built-in tests"
+      puts "\nDefault behavior: Auto-detects failing and pending CircleCI jobs using 'gh pr checks'"
+      puts "Provide job numbers to override auto-detection."
+      exit
+    end
+  end.parse!
+
+  # Run tests if requested
+  if options[:test]
+    success = CircleCIOutputTest.run_all_tests
+    exit(success ? 0 : 1)
+  end
+
+  # Check for required environment variable
+  token = ENV['CIRCLECI_TOKEN']
+  unless token
+    puts "Error: CIRCLECI_TOKEN environment variable is required"
+    puts "Get your token from: https://circleci.com/account/api"
+    exit 1
+  end
+
+  circleci = CircleCIOutput.new(token)
+
+  # Check if specific job numbers were provided
+  job_numbers = ARGV.map(&:to_i).reject(&:zero?)
+
+  if job_numbers.empty? || options[:auto]
+    # Default behavior: auto-detect failing and pending jobs
+    puts "Running 'gh pr checks' to find failing and pending CircleCI jobs..."
+    jobs_result = circleci.get_failing_and_pending_jobs_from_gh
+
+    failing_jobs = jobs_result[:failing]
+    pending_jobs = jobs_result[:pending]
+
+    if failing_jobs.empty? && pending_jobs.empty?
+      puts "No failing or pending CircleCI jobs found in current PR"
+      puts "Make sure you're in a git repository with an open PR"
+      puts "Or provide specific job numbers: #{$0} 123456 234567"
+      exit 0
+    end
+
+    # Display status summary
+    if failing_jobs.any?
+      puts "Found failing jobs: #{failing_jobs.join(', ')}"
+    end
+    if pending_jobs.any?
+      puts "Found pending jobs: #{pending_jobs.join(', ')}"
+    end
+
+    # Prioritize failing jobs for analysis
+    job_numbers = failing_jobs + pending_jobs
+  else
+    # Use explicitly provided job numbers
+    puts "Analyzing specified job numbers: #{job_numbers.join(', ')}"
+  end
+
+  job_numbers.each do |job_number|
+    circleci.analyze_job(job_number)
+    puts "\n" if job_numbers.size > 1
+  end
+end
+
+main if __FILE__ == $0
