@@ -1,0 +1,107 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "pathname"
+
+require "bundler/setup"
+Bundler.require(:development)
+require "filewatcher"
+
+def files_edited
+  `bin/files-edited`.split("\n")
+end
+
+# Print message surrounded by emoji, constrained by shell width or at least 3 emojis
+def banner(message, big: false)
+  padded = " #{message} "
+  terminal_columns = ((`which tput`.strip != "" && `tput cols`) || "80").strip.to_i # alpine doesn't have tput
+  # emoji are not monospace
+  min_emoji = 3
+  emoji_width = 2
+  emoji_count_left = ((terminal_columns - padded.length) / emoji_width / 2).floor
+  emoji_count_right = ((terminal_columns - padded.length) / emoji_width / 2).ceil
+
+  emoji_count_left = [emoji_count_left, min_emoji].max
+  emoji_count_right = [emoji_count_right, min_emoji].max
+
+  puts("".center((terminal_columns/emoji_width).floor, "🎉")) if big
+  puts("🎉" * emoji_count_left + padded + "🎉" * emoji_count_right)
+  puts("".center((terminal_columns/emoji_width).floor, "🎉")) if big
+end
+
+# Watch file changes and rerun specs as follows:
+#   - watch all `bin/files-edited` for changes
+#   - on file change:
+#     - run all changed specs (bin/spec)
+#     - else if the last spec run failed, rerun with
+#       `bin/spec --only-failures` (default) or `bin/spec --next-failure`
+#       - if this passed, run all changed specs (bin/spec)
+#   - trigger on file change
+def main
+  next_failure = false
+  opts = OptionParser.new do |opts|
+    opts.banner = %(Usage: bin/wspec [options]
+Watch changed files and re-run changed specs (with focus on failures) until all pass.
+For the speediest feedback loop, use `bin/wspec --next-failure`.
+
+)
+    opts.on("-h", "--help", "Show this help message") do
+      puts opts
+      exit 0
+    end
+
+    opts.on("-n", "--next-failure", "Run only the next failing test instead of all failures") do
+      next_failure = true
+    end
+  end
+
+  begin
+    opts.parse!
+  rescue OptionParser::InvalidOption => e
+    debugger
+    warn "#{e.detailed_message}\n#{e.backtrace.join("\n")}\n\n#{opts}"
+    exit 1
+  end
+
+  relative_path = Pathname.new(Pathname.new(__FILE__).realpath)
+    .relative_path_from(Pathname.new(Dir.pwd))
+  if relative_path != Pathname.new("bin/wspec")
+    abort "Run this from the Rails / project root directory, not #{Dir.pwd}"
+  end
+
+  last_run_passed = nil
+  edited = files_edited.select { |file| File.exist?(file) }
+
+  on_files_edited = lambda do |changes|
+    changes.each do |filename, event|
+      puts "File #{event}: #{filename}"
+    end
+
+    if last_run_passed || last_run_passed.nil?
+      puts "Running all changed specs"
+      last_run_passed = system "bin/spec"
+      if last_run_passed
+        banner("All changed specs passed!", big: true)
+      end
+    else
+      puts "Re-running failed specs..."
+      args = next_failure ? "--next-failure" : "--only-failures"
+      last_run_passed = system "bin/spec #{args}"
+      if last_run_passed
+        banner("Failed specs passed! Running all changed specs")
+        last_run_passed = system "bin/spec"
+      end
+    end
+  end
+  puts "Watching for changes... (Ctrl-C to exit)\n  #{edited.join("\n  ")}"
+  on_files_edited.call([])
+  Filewatcher.new(edited).watch do |changes|
+    on_files_edited.call(changes)
+  end
+rescue Interrupt
+  puts "Gracefully shutting down"
+  exit 0
+end
+
+main
