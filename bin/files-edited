@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+
+# In docker containers, this will fail and print a message to stderr with how to fix it.
+`git status -s > /dev/null`
+
+# files edited on this branch or not committed
+puts(
+  [
+    `git diff --name-only main..`,
+    `git diff --name-only`,
+    `git diff --staged --name-only`
+  ]
+  .map(&:split)
+  .flatten
+  .reject(&:empty?)
+  .sort
+  .uniq
+)
