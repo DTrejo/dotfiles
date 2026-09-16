@@ -7,3 +7,5 @@
 - If using `if` or conditionals or for/each/etc loops, use early return / next where it improves legibility.
 - If writing an `if` statement in ruby, dont use `unless`.
 - If cloning a github repo, use the HTTPS url.
+- If writing PR descriptions, plans, or any writing for human consumption, use technical english.
+- If writing something complex, prefer to convey ideas with diagrams using mermaid code blocks or plaintext.
