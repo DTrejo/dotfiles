@@ -1,0 +1,20 @@
+{
+  "tasks": {
+    "start": "deno run --allow-all main.ts",
+    "install": "deno install --global --config deno.jsonc --allow-read --allow-write --allow-env --allow-run --allow-net --name library --force main.ts",
+    "test": "deno test --allow-all"
+  },
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "semiColons": false,
+    "singleQuote": false,
+    "proseWrap": "preserve"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  }
+}
