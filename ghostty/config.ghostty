@@ -9,8 +9,8 @@ background-opacity = 1
 # Match iTerm2's light gray text.
 foreground = #bbbbbb
 
-# Match iTerm2's white bold text and bright ANSI bold colors.
-bold-color = #ffffff
+# Near-white bold text and bright ANSI bold colors.
+bold-color = #fefefe
 
 # Steady vertical cursor.
 cursor-style = bar

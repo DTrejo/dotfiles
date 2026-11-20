@@ -282,3 +282,7 @@ export COMPOSE_BAKE=true
 alias dr="docker-compose run --rm "
 
 alias slackletters='ruby -e "puts STDIN.read.strip.chars.map { |c| c.match?(/[[:alpha:]]/) ? \":alphabet-yellow-#{c.downcase}:\" : c }.join"'
+
+# yarn uses less space in worktrees
+export YARN_ENABLE_GLOBAL_CACHE=true
+export YARN_NM_MODE=hardlinks-global

@@ -16,6 +16,19 @@ for x in $BASE/dot-* ; do
 
 done
 
+ghostty_dir="$HOME/Library/Application Support/com.mitchellh.ghostty"
+
+mkdir -p "$ghostty_dir"
+
+if [ -e "$ghostty_dir/config.ghostty" ]; then
+  backup="$ghostty_dir/config.ghostty.old$(date +%m%d%H%M%Y.%S)"
+  echo Moving "$ghostty_dir/config.ghostty" to "$backup"
+  mv "$ghostty_dir/config.ghostty" "$backup"
+fi
+
+echo Linking "$ghostty_dir/config.ghostty" to "$BASE/ghostty/config.ghostty"
+ln -s "$BASE/ghostty/config.ghostty" "$ghostty_dir/config.ghostty"
+
 echo Also Linking ~/bin to $BASE/bin
 ln -s $BASE/bin $HOME/bin
 
