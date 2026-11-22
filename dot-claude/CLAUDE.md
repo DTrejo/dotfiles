@@ -9,3 +9,4 @@
 - If cloning a github repo, use the HTTPS url.
 - If writing PR descriptions, plans, or any writing for human consumption, use technical english.
 - If writing something complex, prefer to convey ideas with diagrams using mermaid code blocks or plaintext.
+- In Rails projects, use `bin/rails generate` for controllers, models, migrations, and other Rails artifacts instead of creating files manually.
